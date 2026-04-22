@@ -1,6 +1,7 @@
 # --- Project-specific ---
 # Ignore wav files under data/
 /data/**/*.wav
+/benchmark/data/**/*.wav
 
 # --- Python ---
 __pycache__/
