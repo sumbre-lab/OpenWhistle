@@ -22,12 +22,10 @@ from tqdm import tqdm
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 from conf import (
-    aves_bio_config,
-    aves_bio_model,
-    aves_core_config,
-    aves_core_model,
     dolph2vec_base,
     dolph2vec_config_path,
+    get_aves_paths,
+    get_aves_sample_rate,
 )
 from models import (
     MFCC,
@@ -89,17 +87,19 @@ def get_audio_model(model_name: str, target_sample_rate: int):
         "spectrogram": Spectrogram,
         "spectral_features": SpectralFeatures,
     }
+    if model_name == "aves_bio":
+        amodel_path, aconfig = get_aves_paths("bio")
+        target_sample_rate = get_aves_sample_rate("bio")
+    elif model_name == "aves_core":
+        amodel_path, aconfig = get_aves_paths("core")
+        target_sample_rate = get_aves_sample_rate("core")
+    else:
+        amodel_path, aconfig = "", ""
     model_args = dict(
         sample_rate=target_sample_rate,
         dolph2vec_config_path=dolph2vec_config_path,
         dolph2vec_model_path=dolph2vec_base,
     )
-    if model_name == "aves_bio":
-        amodel_path, aconfig = aves_bio_model, aves_bio_config
-    elif model_name == "aves_core":
-        amodel_path, aconfig = aves_core_model, aves_core_config
-    else:
-        amodel_path, aconfig = "", ""
     model_args["aves_model_path"] = amodel_path
     model_args["aves_config_path"] = aconfig
     return name2model[model_name](**model_args)

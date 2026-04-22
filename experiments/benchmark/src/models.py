@@ -2,7 +2,7 @@ import librosa
 import numpy as np
 import torch
 import torchaudio
-from aves import load_feature_extractor
+from pathlib import Path
 from transformers import (
     ClapModel,
     ClapProcessor,
@@ -79,6 +79,20 @@ class Aves:
         *args,
         **kwargs,
     ):
+        try:
+            from aves import load_feature_extractor
+        except ImportError as exc:
+            raise ImportError(
+                "AVES support requires a package that exposes "
+                "`aves.load_feature_extractor`, but the installed `aves` "
+                "module does not provide it."
+            ) from exc
+
+        if not Path(aves_model_path).exists():
+            raise FileNotFoundError(f"AVES model file not found: {aves_model_path}")
+        if not Path(aves_config_path).exists():
+            raise FileNotFoundError(f"AVES config file not found: {aves_config_path}")
+
         self.feature_extractor = load_feature_extractor(
             config_path=aves_config_path,
             model_path=aves_model_path,

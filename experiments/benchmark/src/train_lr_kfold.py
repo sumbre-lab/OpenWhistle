@@ -6,12 +6,10 @@ import numpy as np
 import pandas as pd
 import torch
 from conf import (
-    aves_bio_config,
-    aves_bio_model,
-    aves_core_config,
-    aves_core_model,
     dolph2vec_config_path,
     dolph2vec_base,
+    get_aves_paths,
+    get_aves_sample_rate,
 )
 from models import MFCC, Aves, BioLingual, Dolph2Vec, SpectralFeatures, Spectrogram
 from sklearn.linear_model import LogisticRegression
@@ -90,20 +88,21 @@ def main():
         "spectral_features": SpectralFeatures,
     }
 
+    actual_sample_rate = args.target_sample_rate
+    if args.model == "aves_bio":
+        aves_model_path, aves_config_path = get_aves_paths("bio")
+        actual_sample_rate = get_aves_sample_rate("bio")
+    elif args.model == "aves_core":
+        aves_model_path, aves_config_path = get_aves_paths("core")
+        actual_sample_rate = get_aves_sample_rate("core")
+    else:
+        aves_model_path, aves_config_path = "", ""
+
     model_args = dict(
-        sample_rate=args.target_sample_rate,
+        sample_rate=actual_sample_rate,
         dolph2vec_config_path=dolph2vec_config_path,
         dolph2vec_model_path=dolph2vec_base,
     )
-
-    if args.model == "aves_bio":
-        aves_model_path = aves_bio_model
-        aves_config_path = aves_bio_config
-    elif args.model == "aves_core":
-        aves_model_path = aves_core_model
-        aves_config_path = aves_core_config
-    else:
-        aves_model_path, aves_config_path = "", ""
 
     model_args["aves_model_path"] = aves_model_path
     model_args["aves_config_path"] = aves_config_path
