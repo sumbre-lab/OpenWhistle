@@ -1,0 +1,2 @@
+Model mfcc on dataset classification with C = 0.1:
+Logistic Regression K-Fold Accuracy: 0.4697 ± 0.0132

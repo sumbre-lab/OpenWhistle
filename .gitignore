@@ -1,0 +1,100 @@
+# --- Audio / media (datasets, generated samples) ---
+*.wav
+*.aif
+*.aiff
+*.flac
+*.mp3
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Virtual environments ---
+.venv/
+venv/
+ENV/
+env/
+.env/
+.env.*
+!.env.example
+
+# --- Test / type / lint caches ---
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# --- ML / experiment tooling (local runs, caches) ---
+wandb/
+mlruns/
+.neptune/
+dvc.lock.bak
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+lightning_logs/
+tensorboard_logs/
+runs/
+
+# --- Hugging Face & local download caches (repo-local only) ---
+.cache/
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# --- Editors / IDEs ---
+.idea/
+*.swp
+*.swo
+*.swn
+.project
+.pydevproject
+.settings/
+*.code-workspace
+
+# --- Logs & temp ---
+*.log
+*.tmp
+*.temp
+.tmp/
+.temp/
