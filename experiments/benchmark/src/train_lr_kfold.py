@@ -127,8 +127,6 @@ def main():
 
     df["path"] = df["path"].str.replace(
         "/lustre/fsn1/projects/rech/vzf/uqe97pu/raw_data/all_categories/",
-         #"/Volumes/jz_scratch/raw_data/all_categories/",
-        #"/home/semenzin/jz_scratch/raw_data/all_categories/",
         "/media/DOLPHIN/HF_DolphinReef-labeled/",
         regex=False,
     )
