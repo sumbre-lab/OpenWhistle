@@ -1,0 +1,10 @@
+- name: dolphin_reef
+  type: classification
+  train_data: data/dolphin_reef/balanced/fine-tuning/train.csv
+  valid_data: data/dolphin_reef/balanced/fine-tuning/valid.csv
+  test_data: data/dolphin_reef/balanced/fine-tuning/test.csv
+  num_labels: 6
+  labels: ['SW_Yosefa', 'SW_Luna', 'SW_Nikita', 'SW_Neo', 'SW_Nana', 'NSW_9']
+  unknown_label: null
+  sample_rate: 44100
+  max_duration: 3
