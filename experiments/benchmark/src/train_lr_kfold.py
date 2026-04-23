@@ -22,6 +22,11 @@ from metrics import MeanAveragePrecision
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 LR_MAX_ITER = 10000
+LUSTRE_PREFIX = "/lustre/fsn1/projects/rech/vzf/uqe97pu/raw_data/all_categories/"
+HF_MIRROR_PREFIX = "/home/pablo/ibens/DOLPHIN_robin/HF_DolphinReef-labeled/"
+DETECTION_CLIPS_DIR = Path(
+    "/home/pablo/ibens/DOLPHIN1_robin/Wh_detection_database_NEURIPS/OW_detection"
+)
 
 
 def set_seed(seed: int = 42):
@@ -34,6 +39,17 @@ def set_seed(seed: int = 42):
         torch.cuda.manual_seed_all(seed)  # for multi-GPU
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+
+
+def resolve_audio_path(raw_path: str, dataset_name: str | None = None) -> str:
+    path = Path(raw_path)
+
+    raw_path_str = str(raw_path)
+    if raw_path_str.startswith(LUSTRE_PREFIX):
+        return raw_path_str.replace(LUSTRE_PREFIX, HF_MIRROR_PREFIX, 1)
+    if dataset_name == "detection" and "OW_detection" in path.parts:
+        return str(DETECTION_CLIPS_DIR / path.name)
+    return raw_path_str
 
 
 def get_args():
@@ -124,11 +140,7 @@ def main():
         _detection_meta = {"path", "name", "original_path"}
         detection_label_cols = [c for c in df.columns if c not in _detection_meta]
 
-    df["path"] = df["path"].str.replace(
-        "/lustre/fsn1/projects/rech/vzf/uqe97pu/raw_data/all_categories/",
-        "/home/pablo/ibens/DOLPHIN_robin/HF_DolphinReef-labeled/",
-        regex=False,
-    )
+    df["path"] = df["path"].map(lambda raw_path: resolve_audio_path(raw_path, args.dataset_name))
 
     embeddings = []
     labels = []
