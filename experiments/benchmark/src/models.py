@@ -114,7 +114,15 @@ class Aves:
 
 class Dolph2Vec:
     def __init__(self, dolph2vec_model_path: str, dolph2vec_config_path: str, sample_rate: int = 44100, *args, **kwargs):
-        self.feature_extractor = Wav2Vec2FeatureExtractor.from_json_file(dolph2vec_config_path)
+        config_path = Path(dolph2vec_config_path)
+        if config_path.exists():
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_json_file(
+                str(config_path)
+            )
+        else:
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
+                dolph2vec_config_path
+            )
         self.model = Wav2Vec2Model.from_pretrained(dolph2vec_model_path)
 
         self.device = infer_device()

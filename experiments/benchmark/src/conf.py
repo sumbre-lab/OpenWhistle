@@ -68,6 +68,5 @@ def get_aves_sample_rate(variant: str):
     return AVES_VARIANTS[variant]["sample_rate"]
 
 
-dolph2vec_config_path = "/home/pablo/Documents/Dolph2Vec/preprocessor_dolphin.json"
-
 dolph2vec_base = "dolphinteam/model-dolph2vec_type-base_data-DolphinChat_version-v0"
+dolph2vec_config_path = dolph2vec_base
