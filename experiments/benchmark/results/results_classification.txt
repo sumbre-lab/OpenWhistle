@@ -1,42 +1,21 @@
-Model mfcc on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.4660 ± 0.0101
-Model mfcc on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.4663 ± 0.0077
-Model mfcc on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.4680 ± 0.0092
-Model spectrogram on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.6230 ± 0.0348
-Model spectrogram on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.6183 ± 0.0241
-Model spectrogram on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.6103 ± 0.0222
-Model spectral_features on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.3330 ± 0.0160
-Model spectral_features on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.3420 ± 0.0201
-Model spectral_features on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.3413 ± 0.0203
-Model dolph2vec on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.8130 ± 0.0141
-Model dolph2vec on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.7963 ± 0.0108
-Model dolph2vec on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.7847 ± 0.0053
-Model biolingual on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.7313 ± 0.0074
-Model biolingual on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.7047 ± 0.0074
-Model biolingual on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.6800 ± 0.0074
-Model aves_bio on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.7520 ± 0.0172
-Model aves_bio on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.7267 ± 0.0155
-Model aves_bio on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.7190 ± 0.0200
-Model aves_core on dataset classification with C = 0.1:
-Logistic Regression K-Fold Accuracy: 0.7190 ± 0.0151
-Model aves_core on dataset classification with C = 1.0:
-Logistic Regression K-Fold Accuracy: 0.6970 ± 0.0140
-Model aves_core on dataset classification with C = 10.0:
-Logistic Regression K-Fold Accuracy: 0.6940 ± 0.0124
+Model mfcc on dataset classification:
+Best C = 1.0 (validation Accuracy = 0.4044)
+Logistic Regression Test Accuracy: 0.4556 ± 0.0237
+Model spectrogram on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.5578)
+Logistic Regression Test Accuracy: 0.5556 ± 0.0235
+Model spectral_features on dataset classification:
+Best C = 1.0 (validation Accuracy = 0.2978)
+Logistic Regression Test Accuracy: 0.3489 ± 0.0224
+Model dolph2vec on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.8156)
+Logistic Regression Test Accuracy: 0.8111 ± 0.0183
+Model biolingual on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.7244)
+Logistic Regression Test Accuracy: 0.7133 ± 0.0211
+Model aves_bio on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.7333)
+Logistic Regression Test Accuracy: 0.7511 ± 0.0205
+Model aves_core on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.6711)
+Logistic Regression Test Accuracy: 0.6800 ± 0.0221

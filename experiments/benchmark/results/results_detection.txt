@@ -1,42 +1,21 @@
-Model mfcc on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.3284 ± 0.0124
-Model mfcc on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.3300 ± 0.0127
-Model mfcc on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.3302 ± 0.0128
-Model spectrogram on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.4631 ± 0.0120
-Model spectrogram on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.4568 ± 0.0107
-Model spectrogram on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.4467 ± 0.0091
-Model spectral_features on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.2331 ± 0.0099
-Model spectral_features on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.2384 ± 0.0102
-Model spectral_features on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.2389 ± 0.0100
-Model dolph2vec on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.7286 ± 0.0115
-Model dolph2vec on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.6780 ± 0.0086
-Model dolph2vec on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.6377 ± 0.0086
-Model biolingual on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.6376 ± 0.0190
-Model biolingual on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.5942 ± 0.0168
-Model biolingual on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.5311 ± 0.0201
-Model aves_bio on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.6595 ± 0.0136
-Model aves_bio on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.6074 ± 0.0108
-Model aves_bio on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.5634 ± 0.0148
-Model aves_core on dataset detection with C = 0.1:
-Logistic Regression K-Fold mAP: 0.6008 ± 0.0238
-Model aves_core on dataset detection with C = 1.0:
-Logistic Regression K-Fold mAP: 0.5348 ± 0.0253
-Model aves_core on dataset detection with C = 10.0:
-Logistic Regression K-Fold mAP: 0.4923 ± 0.0231
+Model mfcc on dataset detection:
+Best C = 10.0 (validation mAP = 0.3079)
+Logistic Regression Test mAP: 0.3363 ± 0.0176
+Model spectrogram on dataset detection:
+Best C = 0.1 (validation mAP = 0.4254)
+Logistic Regression Test mAP: 0.4771 ± 0.0211
+Model spectral_features on dataset detection:
+Best C = 10.0 (validation mAP = 0.2396)
+Logistic Regression Test mAP: 0.2633 ± 0.0114
+Model dolph2vec on dataset detection:
+Best C = 0.1 (validation mAP = 0.7229)
+Logistic Regression Test mAP: 0.7562 ± 0.0202
+Model biolingual on dataset detection:
+Best C = 0.1 (validation mAP = 0.5817)
+Logistic Regression Test mAP: 0.6652 ± 0.0219
+Model aves_bio on dataset detection:
+Best C = 0.1 (validation mAP = 0.6031)
+Logistic Regression Test mAP: 0.6497 ± 0.0227
+Model aves_core on dataset detection:
+Best C = 0.1 (validation mAP = 0.5560)
+Logistic Regression Test mAP: 0.5743 ± 0.0208
