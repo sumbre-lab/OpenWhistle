@@ -16,14 +16,12 @@ datasets=(classification detection)
 
 for model in "${models[@]}"; do
   for dataset in "${datasets[@]}"; do
-    for reg in "${inverse_regs[@]}"; do
-      echo "train_lr_kfold: model=${model} inverse_reg=${reg} dataset=${dataset}"
-      python src/train_lr_kfold.py \
-        --model "$model" \
-        --inverse_reg "$reg" \
-        --dataset_name "$dataset"
-      echo "===================================================="
-    done
+    echo "train_lr_kfold: model=${model} inverse_regs=${inverse_regs[*]} dataset=${dataset}"
+    python src/train_lr_kfold.py \
+      --model "$model" \
+      --inverse_regs "${inverse_regs[@]}" \
+      --dataset_name "$dataset"
+    echo "===================================================="
   done
 done
 
