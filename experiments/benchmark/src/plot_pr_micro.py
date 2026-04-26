@@ -13,6 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from hf_datasets import (
+    get_detection_label_vector,
+    load_classification_examples,
+    load_detection_examples,
+)
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, average_precision_score, precision_recall_curve
 from sklearn.model_selection import StratifiedKFold
@@ -34,12 +39,6 @@ from models import (
     Dolph2Vec,
     SpectralFeatures,
     Spectrogram,
-)
-
-LUSTRE_PREFIX = "/lustre/fsn1/projects/rech/vzf/uqe97pu/raw_data/all_categories/"
-HF_MIRROR_PREFIX = "/home/pablo/ibens/DOLPHIN_robin/HF_DolphinReef-labeled/"
-DETECTION_CLIPS_DIR = Path(
-    "/home/pablo/ibens/DOLPHIN1_robin/Wh_detection_database_NEURIPS/OW_detection"
 )
 
 
@@ -83,17 +82,6 @@ def set_seed(seed: int = 42):
         torch.backends.cudnn.benchmark = False
 
 
-def resolve_audio_path(raw_path: str, dataset_name: str | None = None) -> str:
-    path = Path(raw_path)
-
-    raw_path_str = str(raw_path)
-    if raw_path_str.startswith(LUSTRE_PREFIX):
-        return raw_path_str.replace(LUSTRE_PREFIX, HF_MIRROR_PREFIX, 1)
-    if dataset_name == "detection" and "OW_detection" in path.parts:
-        return str(DETECTION_CLIPS_DIR / path.name)
-    return raw_path_str
-
-
 def get_audio_model(model_name: str, target_sample_rate: int):
     name2model = {
         "aves_core": Aves,
@@ -131,37 +119,28 @@ def load_embeddings(
     set_seed(seed)
     model = get_audio_model(model_name, target_sample_rate)
 
-    dataset_name2path = {
-        "classification": "data/classification/balanced/all.csv",
-        "dolphin_reef_balanced": "data/dolphin_reef/balanced/all.csv",
-        "dolphin_reef_unbalanced": "data/dolphin_reef/unbalanced/all.csv",
-        "detection": "data/detection/all.csv",
-    }
-    data_path = dataset_name2path[dataset_name]
-    df = pd.read_csv(data_path)
-    detection_label_cols = None
     if dataset_name == "detection":
-        _detection_meta = {"path", "name", "original_path"}
-        detection_label_cols = [c for c in df.columns if c not in _detection_meta]
-
-    df["path"] = df["path"].map(lambda raw_path: resolve_audio_path(raw_path, dataset_name))
+        dataset, _ = load_detection_examples()
+    else:
+        dataset, _ = load_classification_examples()
 
     embeddings = []
     labels = []
-    for _, row in tqdm(df.iterrows(), desc=f"embed {model_name}", total=len(df)):
-        path = row["path"]
+    for row in tqdm(dataset, desc=f"embed {model_name}", total=len(dataset)):
+        audio = row["audio"]
         if dataset_name == "detection":
-            label = row[detection_label_cols].values.astype(int)
+            label = np.asarray(get_detection_label_vector(row), dtype=np.int64)
         else:
-            label = row["label"]
+            label = int(row["label"])
         try:
-            embedding = model(path)
+            embedding = model(audio)
             embeddings.append(embedding.cpu())
             labels.append(label)
         except Exception as e:
-            print(f"error processing {path}: {e}")
+            audio_path = audio.get("path") if isinstance(audio, dict) else None
+            print(f"error processing {audio_path or '<in-memory-audio>'}: {e}")
 
-    x = np.array(embeddings)
+    x = np.stack([embedding.numpy() for embedding in embeddings])
     y = np.asarray(labels)
     if dataset_name == "detection":
         if y.ndim != 2:
@@ -249,7 +228,7 @@ def mean_cv_micro_ap_detection(
         clf = MultiOutputClassifier(base_clf)
         clf.fit(x[train_idx], y[train_idx])
         y_score = clf.predict_proba(x[val_idx])
-        y_score = np.array([np.asarray(p)[:, 1] for p in y_score]).T
+        y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
         aps.append(
             average_precision_score(y[val_idx], y_score, average="micro")
         )
@@ -270,7 +249,7 @@ def oof_predict_proba_multilabel(
         clf = MultiOutputClassifier(base_clf)
         clf.fit(x[train_idx], y[train_idx])
         y_score = clf.predict_proba(x[val_idx])
-        y_score = np.array([np.asarray(p)[:, 1] for p in y_score]).T
+        y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
         oof[val_idx] = y_score
     return oof
 
@@ -288,14 +267,12 @@ def parse_args():
     p.set_defaults(normalize_data=True)
     p.add_argument(
         "--dataset_name",
-        default="dolphin_reef_balanced",
+        default="classification",
         choices=[
             "classification",
-            "dolphin_reef_balanced",
-            "dolphin_reef_unbalanced",
             "detection",
         ],
-        help="detection uses multilabel micro PR; others use single-label multiclass micro PR.",
+        help="detection uses multilabel micro PR; classification uses single-label multiclass micro PR.",
     )
     p.add_argument(
         "--models",

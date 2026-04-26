@@ -3,6 +3,7 @@ import numpy as np
 import soundfile as sf
 import torch
 from pathlib import Path
+from typing import Any
 from transformers import (
     ClapModel,
     ClapProcessor,
@@ -10,6 +11,19 @@ from transformers import (
     Wav2Vec2Model,
 )
 
+
+
+def _load_waveform_from_file(filename):
+    try:
+        waveform, sample_rate = sf.read(filename, always_2d=True)
+    except Exception:
+        waveform, sample_rate = librosa.load(filename, sr=None, mono=False)
+        if waveform.ndim == 1:
+            waveform = waveform[np.newaxis, :]
+        else:
+            waveform = np.asarray(waveform)
+        waveform = waveform.T
+    return waveform, sample_rate
 
 
 def infer_device():
@@ -25,16 +39,21 @@ def infer_device():
     return device
 
 
-def get_waveform(filename, target_sample_rate):
-    try:
-        waveform, sample_rate = sf.read(filename, always_2d=True)
-    except Exception:
-        waveform, sample_rate = librosa.load(filename, sr=None, mono=False)
-        if waveform.ndim == 1:
-            waveform = waveform[np.newaxis, :]
+def get_waveform(audio_source: Any, target_sample_rate):
+    if isinstance(audio_source, dict):
+        if audio_source.get("array") is not None:
+            waveform = np.asarray(audio_source["array"], dtype=np.float32)
+            sample_rate = int(audio_source["sampling_rate"])
+            if waveform.ndim == 1:
+                waveform = waveform[:, np.newaxis]
+            elif waveform.ndim == 2 and waveform.shape[0] < waveform.shape[1]:
+                waveform = waveform.T
+        elif audio_source.get("path"):
+            waveform, sample_rate = _load_waveform_from_file(audio_source["path"])
         else:
-            waveform = np.asarray(waveform)
-        waveform = waveform.T
+            raise ValueError("Unsupported audio mapping: expected an 'array' or 'path'.")
+    else:
+        waveform, sample_rate = _load_waveform_from_file(audio_source)
 
     waveform = np.asarray(waveform, dtype=np.float32)
 

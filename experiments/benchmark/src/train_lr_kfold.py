@@ -3,7 +3,6 @@ import random
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import torch
 from conf import (
     dolph2vec_config_path,
@@ -11,22 +10,23 @@ from conf import (
     get_aves_paths,
     get_aves_sample_rate,
 )
+from hf_datasets import (
+    get_detection_label_vector,
+    load_classification_examples,
+    load_detection_examples,
+)
+from metrics import MeanAveragePrecision
 from models import MFCC, Aves, BioLingual, Dolph2Vec, SpectralFeatures, Spectrogram
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import StandardScaler
 from sklearn.multioutput import MultiOutputClassifier
 from tqdm import tqdm
-from metrics import MeanAveragePrecision
+from sklearn.preprocessing import StandardScaler
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 LR_MAX_ITER = 10000
-LUSTRE_PREFIX = "/lustre/fsn1/projects/rech/vzf/uqe97pu/raw_data/all_categories/"
-HF_MIRROR_PREFIX = "/home/pablo/ibens/DOLPHIN_robin/HF_DolphinReef-labeled/"
-DETECTION_CLIPS_DIR = Path(
-    "/home/pablo/ibens/DOLPHIN1_robin/Wh_detection_database_NEURIPS/OW_detection"
-)
+
 
 
 def set_seed(seed: int = 42):
@@ -39,17 +39,6 @@ def set_seed(seed: int = 42):
         torch.cuda.manual_seed_all(seed)  # for multi-GPU
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-
-
-def resolve_audio_path(raw_path: str, dataset_name: str | None = None) -> str:
-    path = Path(raw_path)
-
-    raw_path_str = str(raw_path)
-    if raw_path_str.startswith(LUSTRE_PREFIX):
-        return raw_path_str.replace(LUSTRE_PREFIX, HF_MIRROR_PREFIX, 1)
-    if dataset_name == "detection" and "OW_detection" in path.parts:
-        return str(DETECTION_CLIPS_DIR / path.name)
-    return raw_path_str
 
 
 def get_args():
@@ -125,40 +114,28 @@ def main():
 
     model = name2model[args.model](**model_args)
 
-    dataset_name2path = {
-        "classification": "data/classification/balanced/all.csv",
-        "detection": "data/detection/all.csv",
-    }
-
-    data_path = dataset_name2path[args.dataset_name]
-
-    df = pd.read_csv(data_path)
-
-    # Multilabel columns only (exclude path/name and e.g. original_path)
-    detection_label_cols = None
     if args.dataset_name == "detection":
-        _detection_meta = {"path", "name", "original_path"}
-        detection_label_cols = [c for c in df.columns if c not in _detection_meta]
-
-    df["path"] = df["path"].map(lambda raw_path: resolve_audio_path(raw_path, args.dataset_name))
+        dataset, _ = load_detection_examples()
+    else:
+        dataset, _ = load_classification_examples()
 
     embeddings = []
     labels = []
-    for i, row in tqdm(df.iterrows(), desc="processing audio files", total=len(df)):
-        path = row["path"]
+    for row in tqdm(dataset, desc="processing audio files", total=len(dataset)):
+        audio = row["audio"]
         if args.dataset_name == "detection":
-            label = row[detection_label_cols].values.astype(int)
+            label = np.asarray(get_detection_label_vector(row), dtype=np.int64)
         else:
-            label = row["label"]
-
+            label = int(row["label"])
         try:
-            embedding = model(path)
+            embedding = model(audio)
             embeddings.append(embedding.cpu())
             labels.append(label)
         except Exception as e:
-            print(f"error processing {path}: {e}")
+            audio_path = audio.get("path") if isinstance(audio, dict) else None
+            print(f"error processing {audio_path or '<in-memory-audio>'}: {e}")
 
-    x_train = np.array(embeddings)
+    x_train = np.stack([embedding.numpy() for embedding in embeddings])
     y_train = np.array(labels)
 
     if args.dataset_name == "detection":
@@ -185,7 +162,7 @@ def main():
             clf.fit(X_tr, y_tr)
             
             y_score = clf.predict_proba(X_val)
-            y_score = np.array([np.array(x)[:, 1] for x in y_score]).T
+            y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
             
             map_metric = MeanAveragePrecision()
             map_metric.update(y_score, y_val)
