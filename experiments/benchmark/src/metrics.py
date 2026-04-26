@@ -1,7 +1,4 @@
 import torch
-import math
-
-
 class AveragePrecision:
     """
     Taken from https://github.com/amdegroot/tnt
@@ -11,9 +8,9 @@ class AveragePrecision:
 
     def reset(self):
         """Resets the meter with empty member variables"""
-        self.scores = torch.tensor(torch.FloatStorage(), dtype=torch.float32, requires_grad=False)
-        self.targets = torch.tensor(torch.LongStorage(), dtype=torch.int64, requires_grad=False)
-        self.weights = torch.tensor(torch.FloatStorage(), dtype=torch.float32, requires_grad=False)
+        self.scores = torch.empty(0, dtype=torch.float32, requires_grad=False)
+        self.targets = torch.empty(0, dtype=torch.int64, requires_grad=False)
+        self.weights = torch.empty(0, dtype=torch.float32, requires_grad=False)
 
     def update(self, output, target, weight=None):
         """
@@ -61,26 +58,27 @@ class AveragePrecision:
             assert target.size(1) == self.targets.size(1), \
                 'dimensions for output should match previously added examples.'
 
-        # make sure storage is of sufficient size
-        if self.scores.storage().size() < self.scores.numel() + output.numel():
-            new_size = math.ceil(self.scores.storage().size() * 1.5)
-            new_weight_size = math.ceil(self.weights.storage().size() * 1.5)
-            self.scores.storage().resize_(int(new_size + output.numel()))
-            self.targets.storage().resize_(int(new_size + output.numel()))
-            if weight is not None:
-                self.weights.storage().resize_(int(new_weight_size
-                                               + output.size(0)))
-
         # store scores and targets
-        offset = self.scores.size(0) if self.scores.dim() > 0 else 0
-        self.scores.resize_(offset + output.size(0), output.size(1))
-        self.targets.resize_(offset + target.size(0), target.size(1))
-        self.scores.narrow(0, offset, output.size(0)).copy_(output.detach())
-        self.targets.narrow(0, offset, target.size(0)).copy_(target.detach())
+        previous_count = self.scores.size(0) if self.scores.numel() > 0 else 0
+        output = output.detach().to(dtype=torch.float32)
+        target = target.detach().to(dtype=torch.int64)
+        if self.scores.numel() == 0:
+            self.scores = output.clone()
+            self.targets = target.clone()
+        else:
+            self.scores = torch.cat((self.scores, output), dim=0)
+            self.targets = torch.cat((self.targets, target), dim=0)
 
         if weight is not None:
-            self.weights.resize_(offset + weight.size(0))
-            self.weights.narrow(0, offset, weight.size(0)).copy_(weight)
+            weight = weight.detach().to(dtype=torch.float32)
+            if self.weights.numel() == 0:
+                previous_weights = torch.ones(previous_count, dtype=torch.float32)
+                self.weights = torch.cat((previous_weights, weight), dim=0)
+            else:
+                self.weights = torch.cat((self.weights, weight), dim=0)
+        elif self.weights.numel() > 0:
+            unit_weights = torch.ones(output.size(0), dtype=torch.float32)
+            self.weights = torch.cat((self.weights, unit_weights), dim=0)
 
     def get_metric(self):
         """Returns the model's average precision for each class
