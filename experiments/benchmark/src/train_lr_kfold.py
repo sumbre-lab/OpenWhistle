@@ -25,7 +25,7 @@ from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
-LR_MAX_ITER = 10000
+LR_MAX_ITER = 20000
 
 
 
@@ -48,7 +48,13 @@ def get_args():
     parser.add_argument("--inverse_reg", default=1.0, type=float)
     parser.add_argument("--kfold", default=5, type=int)
 
-    parser.add_argument("--normalize_data", action="store_true", default=False)
+    parser.add_argument(
+        "--no_normalize_data",
+        dest="normalize_data",
+        action="store_false",
+        default=True,
+        help="Disable feature standardization before logistic regression.",
+    )
 
     parser.add_argument(
         "--dataset_name", 
