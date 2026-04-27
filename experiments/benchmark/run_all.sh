@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Trains k-fold LR then plot_pr_micro for each dataset. Always cds to this
+# Trains split-based LR then plot_pr_micro for each dataset. Always cds to this
 # script's directory (experiments/benchmark); outputs under ./results/ .
 # Invoke: ./run_all.sh  or  bash path/to/experiments/benchmark/run_all.sh
 set -euo pipefail
@@ -16,8 +16,8 @@ datasets=(classification detection)
 
 for model in "${models[@]}"; do
   for dataset in "${datasets[@]}"; do
-    echo "train_lr_kfold: model=${model} inverse_regs=${inverse_regs[*]} dataset=${dataset}"
-    python src/train_lr_kfold.py \
+    echo "train_lr_splits: model=${model} inverse_regs=${inverse_regs[*]} dataset=${dataset}"
+    python src/train_lr_splits.py \
       --model "$model" \
       --inverse_regs "${inverse_regs[@]}" \
       --dataset_name "$dataset"
