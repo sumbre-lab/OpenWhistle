@@ -47,14 +47,26 @@ def _load_concat_splits(
 
 def load_classification_examples(
     config_name: str = CLASSIFICATION_BALANCED_CONFIG_NAME,
+    splits: tuple[str, ...] | None = None,
 ):
+    """
+    Load classification rows from one or more HF splits, concatenated.
+
+    If ``splits`` is ``None`` (default), uses every available split among
+    ``train`` and ``test`` only (same behavior as before). If ``splits`` is set,
+    concatenates exactly those split names in order (each must exist), e.g.
+    ``("train", "validation", "test")`` for the ``all`` config.
+    """
     ds = load_dataset(CLASSIFICATION_DATASET_ID, name=config_name)
     first_split = next(iter(ds.values()))
     label_feature = first_split.features["label"]
     if not isinstance(label_feature, ClassLabel):
         raise TypeError("Classification dataset label must be a ClassLabel.")
-    splits = _require_train_test_splits(ds, CLASSIFICATION_DATASET_ID)
-    ds = concatenate_datasets([ds[split] for split in splits]).cast_column(
+    if splits is None:
+        split_names = _require_train_test_splits(ds, CLASSIFICATION_DATASET_ID)
+    else:
+        split_names = _require_splits(ds, CLASSIFICATION_DATASET_ID, splits)
+    ds = concatenate_datasets([ds[split] for split in split_names]).cast_column(
         "audio", Audio(decode=True)
     )
     return ds, ds.features["label"]
