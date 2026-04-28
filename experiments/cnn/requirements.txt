@@ -9,4 +9,5 @@ scipy==1.13.1
 soundfile
 torch
 torchvision
+tqdm
 wandb

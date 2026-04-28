@@ -13,13 +13,26 @@ from scipy.signal.windows import blackman
 from torch import nn
 from torchvision import models
 
+@dataclass(frozen=True)
+class ImageNormalizationConfig:
+    mean: tuple[float, float, float]
+    std: tuple[float, float, float]
+    source: str
 
-ARCHITECTURE_LEGACY = 'torchvision_vgg16_frozen_features_custom_head'
-ARCHITECTURE_TRAINABLE_SMALL_HEAD = 'torchvision_vgg16_trainable_flatten_fc50_fc20_out2'
+    def to_metadata(self) -> dict[str, object]:
+        return {
+            'mean': list(self.mean),
+            'std': list(self.std),
+            'source': self.source,
+        }
 
-DEFAULT_NORMALIZATION_MEAN = (0.485, 0.456, 0.406)
-DEFAULT_NORMALIZATION_STD = (0.229, 0.224, 0.225)
-
+def torchvision_image_normalization() -> ImageNormalizationConfig:
+    transforms = models.VGG16_Weights.IMAGENET1K_V1.transforms()
+    return ImageNormalizationConfig(
+        mean=tuple(float(value) for value in transforms.mean),
+        std=tuple(float(value) for value in transforms.std),
+        source='torchvision ImageNet-1K pretrained image backbone weights',
+    )
 
 @dataclass(frozen=True)
 class SpectrogramConfig:
@@ -68,52 +81,26 @@ class SpectrogramConfig:
             target_fs=None if target_fs is None else int(target_fs),
         )
 
-
 def _load_torchvision_vgg16(pretrained_backbone: bool) -> models.VGG:
     weights = models.VGG16_Weights.IMAGENET1K_V1 if pretrained_backbone else None
     return models.vgg16(weights=weights)
 
+def _freeze_parameters(module: nn.Module) -> None:
+    for param in module.parameters():
+        param.requires_grad = False
 
-class TorchLegacyVGG16WhistleModel(nn.Module):
-    def __init__(self, pretrained_backbone: bool = False) -> None:
+class VGG16WhistleClassifier(nn.Module):
+    def __init__(
+        self,
+        pretrained_backbone: bool = False,
+        freeze_backbone: bool = False,
+    ) -> None:
         super().__init__()
         backbone = _load_torchvision_vgg16(pretrained_backbone)
         self.features = backbone.features
         self.avgpool = backbone.avgpool
-
-        if pretrained_backbone:
-            for param in self.features.parameters():
-                param.requires_grad = False
-
-        in_features = backbone.classifier[0].in_features
-        self.flatten = nn.Flatten()
-        self.dropout1 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(in_features, 512)
-        self.dropout2 = nn.Dropout(0.4)
-        self.fc2 = nn.Linear(512, 50)
-        self.dropout3 = nn.Dropout(0.3)
-        self.fc3 = nn.Linear(50, 20)
-        self.out = nn.Linear(20, 2)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = self.flatten(x)
-        x = self.dropout1(x)
-        x = torch.relu(self.fc1(x))
-        x = self.dropout2(x)
-        x = torch.relu(self.fc2(x))
-        x = self.dropout3(x)
-        x = torch.relu(self.fc3(x))
-        return self.out(x)
-
-
-class TorchTrainableSmallHeadVGG16Model(nn.Module):
-    def __init__(self, pretrained_backbone: bool = False) -> None:
-        super().__init__()
-        backbone = _load_torchvision_vgg16(pretrained_backbone)
-        self.features = backbone.features
-        self.avgpool = backbone.avgpool
+        if freeze_backbone:
+            _freeze_parameters(self.features)
         in_features = backbone.classifier[0].in_features
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(in_features, 50)
@@ -128,24 +115,20 @@ class TorchTrainableSmallHeadVGG16Model(nn.Module):
         x = torch.relu(self.fc2(x))
         return self.out(x)
 
-
-def build_torch_model(
-    architecture: str,
+def build_vgg16_whistle_classifier(
     pretrained_backbone: bool = False,
+    freeze_backbone: bool = False,
 ) -> nn.Module:
-    if architecture == ARCHITECTURE_LEGACY:
-        return TorchLegacyVGG16WhistleModel(pretrained_backbone=pretrained_backbone)
-    if architecture == ARCHITECTURE_TRAINABLE_SMALL_HEAD:
-        return TorchTrainableSmallHeadVGG16Model(pretrained_backbone=pretrained_backbone)
-    raise ValueError(f'Unsupported Torch architecture: {architecture}')
-
+    return VGG16WhistleClassifier(
+        pretrained_backbone=pretrained_backbone,
+        freeze_backbone=freeze_backbone,
+    )
 
 def ensure_mono_float32(audio: np.ndarray) -> np.ndarray:
     audio = np.asarray(audio)
     if audio.ndim > 1:
         audio = audio[:, 0]
     return np.asarray(audio, dtype=np.float32)
-
 
 def decode_audio_payload(audio_payload: object) -> tuple[int, np.ndarray]:
     if isinstance(audio_payload, dict):
@@ -171,7 +154,6 @@ def decode_audio_payload(audio_payload: object) -> tuple[int, np.ndarray]:
 
     raise TypeError(f'Unsupported audio payload type: {type(audio_payload)!r}')
 
-
 def resample_audio_if_needed(
     audio: np.ndarray,
     fs: int,
@@ -191,7 +173,6 @@ def resample_audio_if_needed(
 
     resampled = librosa.resample(audio, orig_sr=int(fs), target_sr=int(target_fs))
     return int(target_fs), np.asarray(resampled, dtype=np.float32)
-
 
 def make_spectrogram_image(
     audio: np.ndarray,
@@ -226,7 +207,6 @@ def make_spectrogram_image(
     resized = cv2.resize(img_gray, (width, height), interpolation=cv2.INTER_NEAREST)
     return np.stack([resized, resized, resized], axis=2)
 
-
 def audio_payload_to_spectrogram_image(
     audio_payload: object,
     config: SpectrogramConfig,
@@ -234,7 +214,6 @@ def audio_payload_to_spectrogram_image(
     fs, audio = decode_audio_payload(audio_payload)
     fs, audio = resample_audio_if_needed(audio, fs, config.target_fs)
     return make_spectrogram_image(audio, fs, config)
-
 
 def make_spectrogram_batch(
     audio: np.ndarray,
@@ -264,24 +243,32 @@ def make_spectrogram_batch(
 
     return np.asarray(images, dtype=np.uint8), np.asarray(start_sec, dtype=np.float64)
 
-
 def normalize_uint8_image_to_tensor(
     image_uint8: np.ndarray,
-    mean: tuple[float, float, float] = DEFAULT_NORMALIZATION_MEAN,
-    std: tuple[float, float, float] = DEFAULT_NORMALIZATION_STD,
+    mean: tuple[float, float, float] | None = None,
+    std: tuple[float, float, float] | None = None,
 ) -> torch.Tensor:
+    normalization = torchvision_image_normalization()
+    if mean is None:
+        mean = normalization.mean
+    if std is None:
+        std = normalization.std
     image = torch.from_numpy(image_uint8.astype(np.float32) / 255.0).permute(2, 0, 1)
     mean_tensor = torch.tensor(mean, dtype=torch.float32).view(3, 1, 1)
     std_tensor = torch.tensor(std, dtype=torch.float32).view(3, 1, 1)
     return (image - mean_tensor) / std_tensor
 
-
 def normalize_uint8_batch_to_torch(
     images_uint8: np.ndarray,
-    mean: tuple[float, float, float] = DEFAULT_NORMALIZATION_MEAN,
-    std: tuple[float, float, float] = DEFAULT_NORMALIZATION_STD,
+    mean: tuple[float, float, float] | None = None,
+    std: tuple[float, float, float] | None = None,
     device: Optional[torch.device] = None,
 ) -> torch.Tensor:
+    normalization = torchvision_image_normalization()
+    if mean is None:
+        mean = normalization.mean
+    if std is None:
+        std = normalization.std
     images = torch.from_numpy(images_uint8.astype(np.float32) / 255.0).permute(0, 3, 1, 2)
     if device is not None:
         images = images.to(device)
