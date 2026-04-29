@@ -38,10 +38,18 @@ Inference on a folder of recordings:
 
 ```bash
 python cnn/inference.py \
-  --checkpoint-path cnn/runs/models/model_best.pt \
   --recordings-dir /path/to/recordings \
   --output-dir /path/to/predictions
 ```
+
+By default, inference downloads and uses:
+
+```bash
+dolphinteam/OpenWhistle-1.0-CNN-VGG16
+```
+
+Use `--checkpoint-path /path/to/model.pt` only when evaluating a local
+checkpoint.
 
 Useful environment variables:
 

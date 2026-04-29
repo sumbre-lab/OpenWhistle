@@ -81,6 +81,33 @@ class SpectrogramConfig:
             target_fs=None if target_fs is None else int(target_fs),
         )
 
+@dataclass(frozen=True)
+class SpectrogramPlan:
+    window: np.ndarray
+    low_idx: int
+    high_idx: int
+
+def build_spectrogram_plan(fs: int, config: SpectrogramConfig) -> SpectrogramPlan:
+    window = blackman(config.wlen, sym=False)
+    samples_per_window = round(config.sliding_window * fs)
+    f, _, _ = scipy_spectrogram(
+        np.zeros(samples_per_window, dtype=np.float32),
+        fs,
+        nperseg=config.wlen,
+        noverlap=config.wlen - config.hop,
+        nfft=config.nfft,
+        window=window,
+        scaling='density',
+        mode='psd',
+    )
+    lo_hz = config.cut_low_frequency * 1000
+    hi_hz = config.cut_high_frequency * 1000
+    return SpectrogramPlan(
+        window=window,
+        low_idx=int(np.searchsorted(f, lo_hz)),
+        high_idx=int(np.searchsorted(f, hi_hz)),
+    )
+
 def _load_torchvision_vgg16(pretrained_backbone: bool) -> models.VGG:
     weights = models.VGG16_Weights.IMAGENET1K_V1 if pretrained_backbone else None
     return models.vgg16(weights=weights)
@@ -178,16 +205,18 @@ def make_spectrogram_image(
     audio: np.ndarray,
     fs: int,
     config: SpectrogramConfig,
+    plan: SpectrogramPlan | None = None,
 ) -> np.ndarray:
     audio = ensure_mono_float32(audio)
-    win = blackman(config.wlen, sym=False)
-    f, _, sxx = scipy_spectrogram(
+    if plan is None:
+        plan = build_spectrogram_plan(fs, config)
+    _, _, sxx = scipy_spectrogram(
         audio,
         fs,
         nperseg=config.wlen,
         noverlap=config.wlen - config.hop,
         nfft=config.nfft,
-        window=win,
+        window=plan.window,
         scaling='density',
         mode='psd',
     )
@@ -195,12 +224,7 @@ def make_spectrogram_image(
     sxx = 10.0 * np.log10(np.abs(sxx) + 1e-19)
     sxx = (sxx - np.min(sxx)) / (np.max(sxx) - np.min(sxx) + 1e-12) * 255.0
 
-    lo_hz = config.cut_low_frequency * 1000
-    hi_hz = config.cut_high_frequency * 1000
-    low_idx = int(np.searchsorted(f, lo_hz))
-    high_idx = int(np.searchsorted(f, hi_hz))
-
-    sxx_cropped = np.flipud(sxx[low_idx:high_idx, :])
+    sxx_cropped = np.flipud(sxx[plan.low_idx:plan.high_idx, :])
     img_gray = np.clip(sxx_cropped, 0, 255).astype(np.uint8)
 
     height, width = config.image_size
@@ -221,38 +245,41 @@ def make_spectrogram_batch(
     start_sample: int,
     n_windows: int,
     config: SpectrogramConfig,
+    plan: SpectrogramPlan | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     audio = ensure_mono_float32(audio)
     samples_per_window = round(config.sliding_window * fs)
+    valid_windows = max(0, (len(audio) - start_sample) // samples_per_window)
+    window_count = min(n_windows, valid_windows)
 
-    images: list[np.ndarray] = []
-    start_sec: list[float] = []
-    for index in range(n_windows):
-        start = start_sample + index * samples_per_window
-        stop = start + samples_per_window
-        if stop > len(audio):
-            break
-        image = make_spectrogram_image(audio[start:stop], fs, config)
-        images.append(image)
-        start_sec.append(start / fs)
-
-    if not images:
+    if window_count <= 0:
         empty_images = np.empty((0,) + tuple(config.image_size) + (3,), dtype=np.uint8)
         empty_times = np.array([], dtype=np.float64)
         return empty_images, empty_times
 
-    return np.asarray(images, dtype=np.uint8), np.asarray(start_sec, dtype=np.float64)
+    images = np.empty((window_count,) + tuple(config.image_size) + (3,), dtype=np.uint8)
+    start_sec = np.empty((window_count,), dtype=np.float64)
+    if plan is None:
+        plan = build_spectrogram_plan(fs, config)
+    for index in range(window_count):
+        start = start_sample + index * samples_per_window
+        stop = start + samples_per_window
+        images[index] = make_spectrogram_image(audio[start:stop], fs, config, plan)
+        start_sec[index] = start / fs
+
+    return images, start_sec
 
 def normalize_uint8_image_to_tensor(
     image_uint8: np.ndarray,
     mean: tuple[float, float, float] | None = None,
     std: tuple[float, float, float] | None = None,
 ) -> torch.Tensor:
-    normalization = torchvision_image_normalization()
-    if mean is None:
-        mean = normalization.mean
-    if std is None:
-        std = normalization.std
+    if mean is None or std is None:
+        normalization = torchvision_image_normalization()
+        if mean is None:
+            mean = normalization.mean
+        if std is None:
+            std = normalization.std
     image = torch.from_numpy(image_uint8.astype(np.float32) / 255.0).permute(2, 0, 1)
     mean_tensor = torch.tensor(mean, dtype=torch.float32).view(3, 1, 1)
     std_tensor = torch.tensor(std, dtype=torch.float32).view(3, 1, 1)
@@ -264,11 +291,12 @@ def normalize_uint8_batch_to_torch(
     std: tuple[float, float, float] | None = None,
     device: Optional[torch.device] = None,
 ) -> torch.Tensor:
-    normalization = torchvision_image_normalization()
-    if mean is None:
-        mean = normalization.mean
-    if std is None:
-        std = normalization.std
+    if mean is None or std is None:
+        normalization = torchvision_image_normalization()
+        if mean is None:
+            mean = normalization.mean
+        if std is None:
+            std = normalization.std
     images = torch.from_numpy(images_uint8.astype(np.float32) / 255.0).permute(0, 3, 1, 2)
     if device is not None:
         images = images.to(device)

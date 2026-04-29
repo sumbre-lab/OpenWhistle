@@ -1,1 +1,0 @@
-"""OpenWhistle CNN training package."""
