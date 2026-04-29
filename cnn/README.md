@@ -88,6 +88,15 @@ dolphinteam/OpenWhistle-1.0-CNN-VGG16
 Use `--checkpoint-path /path/to/model.pt` only when evaluating a local
 checkpoint.
 
+Evaluate the published model on the test split only:
+
+```bash
+python cnn/train.py --test-only --no-wandb-enabled
+```
+
+This uses `dolphinteam/OpenWhistle-1.0-CNN` split `test` and downloads the
+default checkpoint from `dolphinteam/OpenWhistle-1.0-CNN-VGG16`.
+
 Useful environment variables:
 
 - `TRAIN_BATCH_SIZE` default: `4`
@@ -103,7 +112,7 @@ Useful environment variables:
 - `TRAIN_CPU_ONLY` default: `0`
 - `TRAIN_EVAL_ONLY` default: `0`
 - `TRAIN_CHECKPOINT_PATH` default: the run's `model_best.pt`
-- `WANDB_ENABLED` default: `1`
+- `WANDB_ENABLED` default: `0`; use `--wandb-enabled` to log a run.
 
 The script writes checkpoints, figures, and reports under `cnn/runs`
 relative to the current working directory by default.

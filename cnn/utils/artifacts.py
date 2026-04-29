@@ -218,6 +218,42 @@ def write_run_summary_json(
         json.dump(payload, handle, indent=2)
     return summary_path
 
+def write_test_only_summary_json(
+    config: TrainConfig,
+    checkpoint_path: str,
+    split_summary: dict[str, dict[str, int]],
+    test_metrics: dict[str, np.ndarray | float],
+    confusion_artifacts: dict[str, dict[str, object]],
+    test_session_report_path: str | None,
+) -> str:
+    payload: dict[str, object] = {
+        'dataset_source': config.dataset_source,
+        'train_input_source': config.train_input_source,
+        'checkpoint_path': checkpoint_path,
+        'split_summary': split_summary,
+        'metrics': {
+            config.test_split: {
+                'loss': float(test_metrics['loss']),
+                'accuracy': float(test_metrics['accuracy']),
+                'f1': float(test_metrics['f1']),
+                'precision': float(test_metrics['precision']),
+                'recall': float(test_metrics['recall']),
+                'positive_prediction_rate': float(test_metrics['positive_prediction_rate']),
+            },
+        },
+        'artifacts': {
+            'model': checkpoint_path,
+            'figures_dir': config.figs_dir,
+            'reports_dir': config.reports_dir,
+            'test_session_report_path': test_session_report_path,
+            'confusion_matrices': confusion_artifacts,
+        },
+    }
+    summary_path = os.path.join(config.reports_dir, 'test_summary.json')
+    with open(summary_path, 'w', encoding='utf-8') as handle:
+        json.dump(payload, handle, indent=2)
+    return summary_path
+
 def build_session_report_rows(
     split_name: str,
     split_dataset: HFDataset,

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal, get_args
 
 import torch
+from huggingface_hub import hf_hub_download
 
 from utils.model import (
     SpectrogramConfig,
@@ -97,7 +98,7 @@ class TrainConfig:
     normalization_std: tuple[float, float, float] = field(
         default_factory=default_normalization_std
     )
-    wandb_enabled: bool = True
+    wandb_enabled: bool = False
     wandb_project: str = 'dolphin-whistle-training'
     wandb_entity: str | None = None
     wandb_run_name: str | None = None
@@ -106,6 +107,7 @@ class TrainConfig:
     use_amp: bool = True
     cpu_only: bool = False
     eval_only: bool = False
+    test_only: bool = False
     spectrogram_cache_enabled: bool = True
     pretrained_backbone: bool = True
     freeze_backbone: bool = False
@@ -115,6 +117,8 @@ class TrainConfig:
     min_learning_rate: float = 1e-6
     spectrogram_cache_dir: Path = Path('cnn/runs/spectrogram_cache')
     checkpoint_path: str | None = None
+    checkpoint_repo: str = 'dolphinteam/OpenWhistle-1.0-CNN-VGG16'
+    checkpoint_filename: str = 'model_vgg_final_best.pt'
 
     @classmethod
     def defaults_from_env(cls) -> 'TrainConfig':
@@ -161,6 +165,7 @@ class TrainConfig:
             use_amp=env_bool('TRAIN_USE_AMP', cls.use_amp),
             cpu_only=env_bool('TRAIN_CPU_ONLY', cls.cpu_only),
             eval_only=env_bool('TRAIN_EVAL_ONLY', cls.eval_only),
+            test_only=env_bool('TRAIN_TEST_ONLY', cls.test_only),
             spectrogram_cache_enabled=env_bool(
                 'TRAIN_SPECTROGRAM_CACHE',
                 cls.spectrogram_cache_enabled,
@@ -214,6 +219,11 @@ class TrainConfig:
                 env_str('TRAIN_SPECTROGRAM_CACHE_DIR', str(cls.spectrogram_cache_dir))
             ),
             checkpoint_path=os.environ.get('TRAIN_CHECKPOINT_PATH'),
+            checkpoint_repo=env_str('TRAIN_CHECKPOINT_REPO', cls.checkpoint_repo),
+            checkpoint_filename=env_str(
+                'TRAIN_CHECKPOINT_FILENAME',
+                cls.checkpoint_filename,
+            ),
         )
 
     @classmethod
@@ -267,6 +277,7 @@ class TrainConfig:
         add_bool_arg(parser, 'use-amp', defaults.use_amp, 'Use CUDA AMP when available.')
         add_bool_arg(parser, 'cpu-only', defaults.cpu_only, 'Force training on CPU.')
         add_bool_arg(parser, 'eval-only', defaults.eval_only, 'Only evaluate a checkpoint.')
+        add_bool_arg(parser, 'test-only', defaults.test_only, 'Only evaluate the test split.')
         add_bool_arg(
             parser,
             'spectrogram-cache-enabled',
@@ -346,8 +357,18 @@ class TrainConfig:
             help=hidden,
         )
         parser.add_argument('--checkpoint-path', default=defaults.checkpoint_path)
+        parser.add_argument('--checkpoint-repo', default=defaults.checkpoint_repo, help=hidden)
+        parser.add_argument(
+            '--checkpoint-filename',
+            default=defaults.checkpoint_filename,
+            help=hidden,
+        )
         args = parser.parse_args(argv)
         values = vars(args)
+        if values['test_only']:
+            values['eval_only'] = True
+        if values['eval_only']:
+            values['pretrained_backbone'] = False
         img_size = values['img_size']
         values['spectrogram_config'] = SpectrogramConfig(
             image_size=(img_size, img_size),
@@ -374,7 +395,14 @@ class TrainConfig:
 
     @property
     def eval_checkpoint_path(self) -> str:
-        return self.checkpoint_path or self.best_model_path
+        if self.checkpoint_path:
+            return self.checkpoint_path
+        if self.eval_only:
+            return hf_hub_download(
+                repo_id=self.checkpoint_repo,
+                filename=self.checkpoint_filename,
+            )
+        return self.best_model_path
 
     def spectrogram_cache_active(self) -> bool:
         return bool(
@@ -456,6 +484,8 @@ class TrainConfig:
         payload = asdict(self)
         payload['spectrogram_cache_dir'] = str(self.spectrogram_cache_dir)
         payload['checkpoint_path'] = self.checkpoint_path
+        payload['checkpoint_repo'] = self.checkpoint_repo
+        payload['checkpoint_filename'] = self.checkpoint_filename
         payload['device'] = str(device)
         payload['amp_enabled'] = self.use_amp and device.type == 'cuda'
         payload['normalization'] = self.normalization_metadata()

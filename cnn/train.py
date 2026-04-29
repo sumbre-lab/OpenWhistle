@@ -1,5 +1,6 @@
 import copy
 import gc
+import os
 
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ from utils.artifacts import (
     save_confusion_matrix_artifacts,
     write_run_summary_json,
     write_session_report_csv,
+    write_test_only_summary_json,
 )
 from utils.config import TrainConfig
 from utils.data import PreparedData, prepare_data
@@ -80,6 +82,8 @@ class TorchTrainingRun:
         )
         if self.config.eval_only:
             print('Evaluation-only mode: enabled')
+        if self.config.test_only:
+            print('Test-only mode: enabled')
         if self.config.spectrogram_cache_active():
             print(
                 'Local spectrogram cache: enabled  '
@@ -143,6 +147,89 @@ class TorchTrainingRun:
         print(
             f'Loaded checkpoint for evaluation: {checkpoint_path}  '
             f'(epoch={self.best_epoch}, val_loss={self.best_val_loss:.4f})'
+        )
+
+    def evaluate_test_split(self) -> None:
+        if self.prepared_data is None:
+            raise RuntimeError('Training run has not been set up.')
+        if self.prepared_data.test_loader is None:
+            raise RuntimeError(
+                f'Test-only mode requested but split {self.config.test_split!r} '
+                'is not available.'
+            )
+
+        test_metrics = self.run_epoch(
+            self.prepared_data.test_loader,
+            description='test final',
+        )
+        test_session_rows = build_session_report_rows(
+            self.config.test_split,
+            self.prepared_data.split_datasets[self.config.test_split],
+            test_metrics,
+        )
+        test_session_report_path = write_session_report_csv(
+            self.config.test_split,
+            test_session_rows,
+            self.config,
+        )
+        (
+            test_confusion_csv_path,
+            test_confusion_fig_path,
+            test_confusion_counts,
+        ) = save_confusion_matrix_artifacts(
+            self.config.test_split,
+            test_metrics,
+            self.config,
+        )
+        test_roc = maybe_build_roc_curve(self.config.test_split, test_metrics)
+        plot_roc_curves([test_roc] if test_roc is not None else [], self.config)
+        confusion_artifacts = {
+            self.config.test_split: {
+                'csv_path': test_confusion_csv_path,
+                'figure_path': test_confusion_fig_path,
+                'counts': test_confusion_counts,
+            }
+        }
+        summary_path = write_test_only_summary_json(
+            config=self.config,
+            checkpoint_path=self.resolved_model_artifact_path,
+            split_summary=self.prepared_data.split_summary,
+            test_metrics=test_metrics,
+            confusion_artifacts=confusion_artifacts,
+            test_session_report_path=test_session_report_path,
+        )
+        wandb_log_artifact_images(self.wandb_run, self.config)
+        wandb_log(
+            self.wandb_run,
+            {
+                'epoch': int(self.best_epoch),
+                'test/loss': float(test_metrics['loss']),
+                'test/accuracy': float(test_metrics['accuracy']),
+                'test/f1': float(test_metrics['f1']),
+                'test/precision': float(test_metrics['precision']),
+                'test/recall': float(test_metrics['recall']),
+                'test/positive_prediction_rate': float(
+                    test_metrics['positive_prediction_rate']
+                ),
+            },
+        )
+        if test_session_rows:
+            wandb_log_table(self.wandb_run, 'test/session_metrics', test_session_rows)
+        print('\nTest summary:')
+        print(
+            f'  Test loss={test_metrics["loss"]:.4f}  '
+            f'acc={test_metrics["accuracy"]:.4f}  '
+            f'f1={test_metrics["f1"]:.4f}  '
+            f'precision={test_metrics["precision"]:.4f}  '
+            f'recall={test_metrics["recall"]:.4f}  '
+            f'ppr={test_metrics["positive_prediction_rate"]:.4f}'
+        )
+        print(f'  Checkpoint: {self.resolved_model_artifact_path}')
+        print(f'  Run summary: {summary_path}')
+        print_session_report_preview(
+            self.config.test_split,
+            test_session_rows,
+            test_session_report_path,
         )
 
     def train(self) -> None:
@@ -549,6 +636,9 @@ class TorchTrainingRun:
             self.setup()
             if self.config.eval_only:
                 self.load_eval_checkpoint()
+                if self.config.test_only:
+                    self.evaluate_test_split()
+                    return
             else:
                 self.train()
             self.evaluate_and_write_artifacts()
