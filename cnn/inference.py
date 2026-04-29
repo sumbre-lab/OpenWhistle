@@ -160,11 +160,20 @@ class InferenceModel:
     normalization_std: tuple[float, float, float]
     spectrogram_config: SpectrogramConfig
 
-def load_audio(path: Path) -> tuple[int, np.ndarray]:
-    audio, fs = sf.read(path, always_2d=False)
+def load_audio(
+    path: Path,
+    start_time: float = 0.0,
+    end_time: float | None = None,
+) -> tuple[int, np.ndarray]:
+    with sf.SoundFile(path) as handle:
+        fs = int(handle.samplerate)
+        start_frame = int(start_time * fs)
+        handle.seek(start_frame)
+        frames = -1 if end_time is None else max(0, int(end_time * fs) - start_frame)
+        audio = handle.read(frames=frames, always_2d=False)
     if audio.ndim > 1:
         audio = audio[:, 0]
-    return int(fs), np.asarray(audio, dtype=np.float32)
+    return fs, np.asarray(audio, dtype=np.float32)
 
 def load_inference_model(checkpoint_path: Path, cpu_only: bool) -> InferenceModel:
     device = torch.device('cpu') if cpu_only else get_device()
@@ -251,7 +260,8 @@ def process_file(
     config: InferenceConfig,
     inference_model: InferenceModel,
 ) -> list[dict[str, object]]:
-    fs, audio = load_audio(audio_path)
+    start_time = float(config.start_time)
+    fs, audio = load_audio(audio_path, start_time, config.end_time)
     spectrogram_config = SpectrogramConfig(
         image_size=inference_model.image_size,
         cut_low_frequency=config.spectrogram_config.cut_low_frequency,
@@ -262,16 +272,14 @@ def process_file(
         target_fs=config.spectrogram_config.target_fs,
     )
     fs, audio = resample_audio_if_needed(audio, fs, spectrogram_config.target_fs)
-    start_sample = int(config.start_time * fs)
-    stop_sample = int(config.end_time * fs) if config.end_time is not None else len(audio)
     samples_per_window = round(spectrogram_config.sliding_window * fs)
-    total_windows = max(0, (stop_sample - start_sample) // samples_per_window)
+    total_windows = max(0, len(audio) // samples_per_window)
     spectrogram_plan = build_spectrogram_plan(fs, spectrogram_config)
     rows: list[dict[str, object]] = []
     file_output_dir = config.output_dir / audio_path.stem
     positives_dir = file_output_dir / 'positive'
     for batch_index in range(0, total_windows, config.batch_size):
-        batch_start = start_sample + batch_index * samples_per_window
+        batch_start = batch_index * samples_per_window
         images, start_times = make_spectrogram_batch(
             audio,
             fs,
@@ -286,7 +294,7 @@ def process_file(
         for index, score in enumerate(scores):
             if float(score) < config.threshold:
                 continue
-            start = round(float(start_times[index]), 2)
+            start = round(start_time + float(start_times[index]), 2)
             end = round(start + spectrogram_config.sliding_window, 2)
             rows.append(
                 {
