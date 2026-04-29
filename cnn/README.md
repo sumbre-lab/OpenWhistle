@@ -25,12 +25,49 @@ dolphinteam/OpenWhistle-1.0-CNN
 Override it with `TRAIN_DATASET_SOURCE`. The value can be either a Hugging Face
 dataset repo id or a local `datasets.DatasetDict` saved with `save_to_disk`.
 
+## Installation
+
+Use Python 3.12. Python 3.13 is not recommended for this environment: some
+scientific packages may not have compatible wheels for the pinned stack and pip
+can fall back to building SciPy locally, which requires a Fortran compiler.
+
+The recommended setup is a dedicated conda environment:
+
+```bash
+cd cnn
+conda env create -f environment.yml
+conda activate openwhistle-cnn
+cd ..
+```
+
+Then install PyTorch separately so the CUDA wheel matches the machine:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+
+Use the CPU wheel if the GPU driver or card is not compatible:
+
+```bash
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+If `torch.cuda.is_available()` is `False`, either install a PyTorch wheel built
+for a CUDA version supported by the NVIDIA driver, or run the scripts with
+`--cpu-only`.
+
+Without conda, install the non-PyTorch dependencies with:
+
+```bash
+python -m pip install -r cnn/requirements.txt
+```
+
 ## Example
 
 ```bash
 git clone https://github.com/dolphinteam/OpenWhistle.git
 cd OpenWhistle
-python -m pip install -r cnn/requirements.txt
 python cnn/train.py
 ```
 
