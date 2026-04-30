@@ -10,7 +10,7 @@ export PYTHONPATH="${ROOT}/src"
 
 mkdir -p "${ROOT}/results/pr_curves"
 
-models=(mfcc spectrogram spectral_features dolph2vec biolingual aves_bio aves_core)
+models=(mfcc spectrogram spectral_features dolph2vec biolingual aves_bio aves_core aves_ow)
 inverse_regs=(0.1 1.0 10.0)
 datasets=(classification detection)
 

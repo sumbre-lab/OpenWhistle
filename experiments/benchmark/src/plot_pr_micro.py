@@ -86,6 +86,7 @@ def get_audio_model(model_name: str, target_sample_rate: int):
     name2model = {
         "aves_core": Aves,
         "aves_bio": Aves,
+        "aves_ow": Aves,
         "biolingual": BioLingual,
         "dolph2vec": Dolph2Vec,
         "mfcc": MFCC,
@@ -98,6 +99,9 @@ def get_audio_model(model_name: str, target_sample_rate: int):
     elif model_name == "aves_core":
         amodel_path, aconfig = get_aves_paths("core")
         target_sample_rate = get_aves_sample_rate("core")
+    elif model_name == "aves_ow":
+        amodel_path, aconfig = get_aves_paths("ow")
+        target_sample_rate = get_aves_sample_rate("ow")
     else:
         amodel_path, aconfig = "", ""
     model_args = dict(

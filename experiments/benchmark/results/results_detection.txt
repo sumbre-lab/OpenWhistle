@@ -19,3 +19,6 @@ Logistic Regression Test mAP: 0.6497 ± 0.0227
 Model aves_core on dataset detection:
 Best C = 0.1 (validation mAP = 0.5560)
 Logistic Regression Test mAP: 0.5743 ± 0.0208
+Model aves_ow on dataset detection:
+Best C = 0.1 (validation mAP = 0.6729)
+Logistic Regression Test mAP: 0.7416 ± 0.0203
