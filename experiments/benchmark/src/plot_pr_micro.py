@@ -45,12 +45,18 @@ from models import (
 def color_for_model(model_name: str) -> str:
     """Fixed colors for common backbones; unknown models use gray."""
     n = model_name.lower()
+    fixed_colors = {
+        "aves_core": "#2e7d32",  # green
+        "aves_bio": "#5e35b1",  # indigo
+        "aves_ow": "#f9a825",  # amber
+        "biolingual": "#00838f",  # teal
+        "mfcc": "#1565c0",  # blue
+        "spectrogram": "#ef6c00",  # orange
+    }
+    if n in fixed_colors:
+        return fixed_colors[n]
     if "dolph2vec" in n:
         return "#c62828"  # red
-    if n == "spectrogram":
-        return "#ef6c00"  # orange
-    if n == "mfcc":
-        return "#1565c0"  # blue
     if "spectral" in n:
         return "#6a1b9a"  # purple
     return "#757575"
