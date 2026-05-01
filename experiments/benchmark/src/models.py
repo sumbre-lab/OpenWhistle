@@ -1,8 +1,9 @@
 import librosa
 import numpy as np
+import soundfile as sf
 import torch
-import torchaudio
-from aves import load_feature_extractor
+from pathlib import Path
+from typing import Any
 from transformers import (
     ClapModel,
     ClapProcessor,
@@ -11,8 +12,18 @@ from transformers import (
 )
 
 
-import soundfile as sf
 
+def _load_waveform_from_file(filename):
+    try:
+        waveform, sample_rate = sf.read(filename, always_2d=True)
+    except Exception:
+        waveform, sample_rate = librosa.load(filename, sr=None, mono=False)
+        if waveform.ndim == 1:
+            waveform = waveform[np.newaxis, :]
+        else:
+            waveform = np.asarray(waveform)
+        waveform = waveform.T
+    return waveform, sample_rate
 
 
 def infer_device():
@@ -28,22 +39,33 @@ def infer_device():
     return device
 
 
-def get_waveform(filename, target_sample_rate):
-    try:
-        waveform, sample_rate = torchaudio.load(filename)
-    except RuntimeError:
-        import librosa
+def get_waveform(audio_source: Any, target_sample_rate):
+    if isinstance(audio_source, dict):
+        if audio_source.get("array") is not None:
+            waveform = np.asarray(audio_source["array"], dtype=np.float32)
+            sample_rate = int(audio_source["sampling_rate"])
+            if waveform.ndim == 1:
+                waveform = waveform[:, np.newaxis]
+            elif waveform.ndim == 2 and waveform.shape[0] < waveform.shape[1]:
+                waveform = waveform.T
+        elif audio_source.get("path"):
+            waveform, sample_rate = _load_waveform_from_file(audio_source["path"])
+        else:
+            raise ValueError("Unsupported audio mapping: expected an 'array' or 'path'.")
+    else:
+        waveform, sample_rate = _load_waveform_from_file(audio_source)
 
-        waveform, sample_rate = librosa.load(filename, sr=None)
-        waveform = torch.tensor(waveform).unsqueeze(0)
+    waveform = np.asarray(waveform, dtype=np.float32)
 
-    waveform = torch.mean(waveform, dim=0).unsqueeze(0)
+    # Convert to mono consistently, regardless of backend output shape.
+    waveform = waveform.mean(axis=1)
 
     if sample_rate != target_sample_rate:
-        transform = torchaudio.transforms.Resample(sample_rate, target_sample_rate)
-        waveform = transform(waveform)
+        waveform = librosa.resample(
+            waveform, orig_sr=sample_rate, target_sr=target_sample_rate
+        )
 
-    return waveform
+    return torch.tensor(waveform, dtype=torch.float32).unsqueeze(0)
 
 
 class BioLingual:
@@ -60,14 +82,14 @@ class BioLingual:
         waveform = waveform.squeeze().numpy()
 
         processed = self.processor(
-            audios=waveform, return_tensors="pt", sampling_rate=48000
+            audio=waveform, return_tensors="pt", sampling_rate=48000
         )
         inputs = processed["input_features"].to(self.device)
 
         with torch.no_grad():
             outputs = self.model.get_audio_features(input_features=inputs)
 
-        return outputs.squeeze(0)
+        return outputs.pooler_output.squeeze(0)
 
 
 class Aves:
@@ -79,6 +101,20 @@ class Aves:
         *args,
         **kwargs,
     ):
+        try:
+            from aves import load_feature_extractor
+        except ImportError as exc:
+            raise ImportError(
+                "AVES support requires a package that exposes "
+                "`aves.load_feature_extractor`, but the installed `aves` "
+                "module does not provide it."
+            ) from exc
+
+        if not Path(aves_model_path).exists():
+            raise FileNotFoundError(f"AVES model file not found: {aves_model_path}")
+        if not Path(aves_config_path).exists():
+            raise FileNotFoundError(f"AVES config file not found: {aves_config_path}")
+
         self.feature_extractor = load_feature_extractor(
             config_path=aves_config_path,
             model_path=aves_model_path,
@@ -97,7 +133,15 @@ class Aves:
 
 class Dolph2Vec:
     def __init__(self, dolph2vec_model_path: str, dolph2vec_config_path: str, sample_rate: int = 44100, *args, **kwargs):
-        self.feature_extractor = Wav2Vec2FeatureExtractor.from_json_file(dolph2vec_config_path)
+        config_path = Path(dolph2vec_config_path)
+        if config_path.exists():
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_json_file(
+                str(config_path)
+            )
+        else:
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
+                dolph2vec_config_path
+            )
         self.model = Wav2Vec2Model.from_pretrained(dolph2vec_model_path)
 
         self.device = infer_device()

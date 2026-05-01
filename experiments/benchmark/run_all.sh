@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Trains k-fold LR then plot_pr_micro for each dataset. Always cds to this
+# Trains split-based LR then plot_pr_micro for each dataset. Always cds to this
 # script's directory (experiments/benchmark); outputs under ./results/ .
 # Invoke: ./run_all.sh  or  bash path/to/experiments/benchmark/run_all.sh
 set -euo pipefail
@@ -10,20 +10,18 @@ export PYTHONPATH="${ROOT}/src"
 
 mkdir -p "${ROOT}/results/pr_curves"
 
-models=(mfcc spectrogram spectral_features dolph2vec biolingual aves_bio aves_core)
+models=(mfcc spectrogram spectral_features dolph2vec biolingual aves_bio aves_core aves_ow)
 inverse_regs=(0.1 1.0 10.0)
 datasets=(classification detection)
 
 for model in "${models[@]}"; do
   for dataset in "${datasets[@]}"; do
-    for reg in "${inverse_regs[@]}"; do
-      echo "train_lr_kfold: model=${model} inverse_reg=${reg} dataset=${dataset}"
-      python src/train_lr_kfold.py \
-        --model "$model" \
-        --inverse_reg "$reg" \
-        --dataset_name "$dataset"
-      echo "===================================================="
-    done
+    echo "train_lr_splits: model=${model} inverse_regs=${inverse_regs[*]} dataset=${dataset}"
+    python src/train_lr_splits.py \
+      --model "$model" \
+      --inverse_regs "${inverse_regs[@]}" \
+      --dataset_name "$dataset"
+    echo "===================================================="
   done
 done
 

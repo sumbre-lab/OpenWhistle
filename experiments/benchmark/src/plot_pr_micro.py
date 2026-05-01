@@ -13,6 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from hf_datasets import (
+    get_detection_label_vector,
+    load_classification_examples,
+    load_detection_examples,
+)
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, average_precision_score, precision_recall_curve
 from sklearn.model_selection import StratifiedKFold
@@ -22,12 +27,10 @@ from tqdm import tqdm
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 from conf import (
-    aves_bio_config,
-    aves_bio_model,
-    aves_core_config,
-    aves_core_model,
     dolph2vec_base,
     dolph2vec_config_path,
+    get_aves_paths,
+    get_aves_sample_rate,
 )
 from models import (
     MFCC,
@@ -83,23 +86,29 @@ def get_audio_model(model_name: str, target_sample_rate: int):
     name2model = {
         "aves_core": Aves,
         "aves_bio": Aves,
+        "aves_ow": Aves,
         "biolingual": BioLingual,
         "dolph2vec": Dolph2Vec,
         "mfcc": MFCC,
         "spectrogram": Spectrogram,
         "spectral_features": SpectralFeatures,
     }
+    if model_name == "aves_bio":
+        amodel_path, aconfig = get_aves_paths("bio")
+        target_sample_rate = get_aves_sample_rate("bio")
+    elif model_name == "aves_core":
+        amodel_path, aconfig = get_aves_paths("core")
+        target_sample_rate = get_aves_sample_rate("core")
+    elif model_name == "aves_ow":
+        amodel_path, aconfig = get_aves_paths("ow")
+        target_sample_rate = get_aves_sample_rate("ow")
+    else:
+        amodel_path, aconfig = "", ""
     model_args = dict(
         sample_rate=target_sample_rate,
         dolph2vec_config_path=dolph2vec_config_path,
         dolph2vec_model_path=dolph2vec_base,
     )
-    if model_name == "aves_bio":
-        amodel_path, aconfig = aves_bio_model, aves_bio_config
-    elif model_name == "aves_core":
-        amodel_path, aconfig = aves_core_model, aves_core_config
-    else:
-        amodel_path, aconfig = "", ""
     model_args["aves_model_path"] = amodel_path
     model_args["aves_config_path"] = aconfig
     return name2model[model_name](**model_args)
@@ -114,41 +123,28 @@ def load_embeddings(
     set_seed(seed)
     model = get_audio_model(model_name, target_sample_rate)
 
-    dataset_name2path = {
-        "classification": "data/classification/balanced/all.csv",
-        "dolphin_reef_balanced": "data/dolphin_reef/balanced/all.csv",
-        "dolphin_reef_unbalanced": "data/dolphin_reef/unbalanced/all.csv",
-        "detection": "data/detection/all.csv",
-    }
-    data_path = dataset_name2path[dataset_name]
-    df = pd.read_csv(data_path)
-    detection_label_cols = None
     if dataset_name == "detection":
-        _detection_meta = {"path", "name", "original_path"}
-        detection_label_cols = [c for c in df.columns if c not in _detection_meta]
-
-    df["path"] = df["path"].str.replace(
-        "/lustre/fsn1/projects/rech/vzf/uqe97pu/raw_data/all_categories/",
-        "/media/DOLPHIN/HF_DolphinReef-labeled/",
-        regex=False,
-    )
+        dataset, _ = load_detection_examples()
+    else:
+        dataset, _ = load_classification_examples()
 
     embeddings = []
     labels = []
-    for _, row in tqdm(df.iterrows(), desc=f"embed {model_name}", total=len(df)):
-        path = row["path"]
+    for row in tqdm(dataset, desc=f"embed {model_name}", total=len(dataset)):
+        audio = row["audio"]
         if dataset_name == "detection":
-            label = row[detection_label_cols].values.astype(int)
+            label = np.asarray(get_detection_label_vector(row), dtype=np.int64)
         else:
-            label = row["label"]
+            label = int(row["label"])
         try:
-            embedding = model(path)
+            embedding = model(audio)
             embeddings.append(embedding.cpu())
             labels.append(label)
         except Exception as e:
-            print(f"error processing {path}: {e}")
+            audio_path = audio.get("path") if isinstance(audio, dict) else None
+            print(f"error processing {audio_path or '<in-memory-audio>'}: {e}")
 
-    x = np.array(embeddings)
+    x = np.stack([embedding.numpy() for embedding in embeddings])
     y = np.asarray(labels)
     if dataset_name == "detection":
         if y.ndim != 2:
@@ -236,7 +232,7 @@ def mean_cv_micro_ap_detection(
         clf = MultiOutputClassifier(base_clf)
         clf.fit(x[train_idx], y[train_idx])
         y_score = clf.predict_proba(x[val_idx])
-        y_score = np.array([np.asarray(p)[:, 1] for p in y_score]).T
+        y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
         aps.append(
             average_precision_score(y[val_idx], y_score, average="micro")
         )
@@ -257,7 +253,7 @@ def oof_predict_proba_multilabel(
         clf = MultiOutputClassifier(base_clf)
         clf.fit(x[train_idx], y[train_idx])
         y_score = clf.predict_proba(x[val_idx])
-        y_score = np.array([np.asarray(p)[:, 1] for p in y_score]).T
+        y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
         oof[val_idx] = y_score
     return oof
 
@@ -275,14 +271,12 @@ def parse_args():
     p.set_defaults(normalize_data=True)
     p.add_argument(
         "--dataset_name",
-        default="dolphin_reef_balanced",
+        default="classification",
         choices=[
             "classification",
-            "dolphin_reef_balanced",
-            "dolphin_reef_unbalanced",
             "detection",
         ],
-        help="detection uses multilabel micro PR; others use single-label multiclass micro PR.",
+        help="detection uses multilabel micro PR; classification uses single-label multiclass micro PR.",
     )
     p.add_argument(
         "--models",
