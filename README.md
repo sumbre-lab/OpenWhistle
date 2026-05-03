@@ -2,7 +2,9 @@
 
 This repository accompanies the **OpenWhistle** paper. It provides code to access data and reproduce the article experiments: running the benchmark across multiple models and pretraining a Wav2Vec2.0 model on OpenWhistle. It also includes the code for whistle presence detection and segmentation in the data processing pipeline, as well as scripts to reproduce the figures from the manuscript.
 
-<img src="Annotation_Pipeline.png" alt="OpenWhistle annotation and processing pipeline" width="480">
+<p align="center">
+  <img src="Annotation_Pipeline.png" alt="OpenWhistle annotation and processing pipeline" width="720">
+</p>
 
 
 ## Hugging Face datasets
