@@ -1,12 +1,8 @@
 # OpenWhistle: A Large-Scale Longitudinal Dataset and Benchmark of Bottlenose Dolphin Vocalizations
 
-This repository accompanies the **OpenWhistle** paper. It provides code to process data, train the CNN used in the pipeline, run the full benchmark over multiple models, and reproduce the dataset figures from the manuscript.
+This repository accompanies the **OpenWhistle** paper. It provides code to access data and reproduce the article experiments: running the benchmark across multiple models and pretraining a Wav2Vec2.0 model on OpenWhistle. It also includes the code for whistle presence detection and segmentation in the data processing pipeline, as well as scripts to reproduce the figures from the manuscript.
 
-## Annotation and processing pipeline
-
-The following diagram summarizes how raw hydrophone audio moves through detection, segmentation, and expert annotation for the published Hugging Face releases.
-
-![OpenWhistle annotation and processing pipeline](Annotation_Pipeline.png)
+<img src="Annotation_Pipeline.png" alt="OpenWhistle annotation and processing pipeline" width="480">
 
 
 ## Hugging Face datasets
@@ -33,7 +29,6 @@ From the repository root:
 
 ```bash
 cd experiments/benchmark
-chmod +x run_all.sh   # once, if needed
 ./run_all.sh
 ```
 

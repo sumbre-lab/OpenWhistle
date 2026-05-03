@@ -2,7 +2,7 @@
 
 Frozen **audio embeddings** followed by **linear probes** (logistic regression) on the expert-annotated Hugging Face datasets. This folder reproduces the paper’s **classification** and **detection** benchmark numbers.
 
-![Classification vs detection tasks](fig_tasks.png)
+<img src="fig_tasks.png" alt="Classification vs detection tasks" width="480">
 
 ## Tasks (what each benchmark measures)
 
