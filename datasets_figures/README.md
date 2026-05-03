@@ -11,8 +11,6 @@ python datasets_figures/plot_dataset_overview.py
 python datasets_figures/plot_classification_overview.py
 ```
 
-Optional CSV / Hub refresh: `python datasets_figures/scripts/sidecars.py --help` (same behaviour as `--refresh-data` on the plot scripts; see that module’s docstring for environment variables).
-
 Input data: CSVs under `data/` where a statistic is not taken directly from the Hugging Face datasets; the classification plot also loads the HF classification dataset by default.
 
 ---
