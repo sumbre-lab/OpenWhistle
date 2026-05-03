@@ -92,6 +92,11 @@ Thumbs.db
 .settings/
 *.code-workspace
 
+# --- Generated figures (OpenWhistle/figures) ---
+figures/output/
+# Large optional CSV (~25 MB; copy from DolphinDataset outputs/pretraining/ if needed)
+figures/data/inter_detected_whistle_intervals.csv
+
 # --- Logs & temp ---
 *.log
 *.tmp
