@@ -19,7 +19,7 @@ whistle detection.
 By default, training reads the public Hugging Face dataset:
 
 ```bash
-dolphinteam/OpenWhistle-CNN
+OpenWhistleNeurIPS26/OpenWhistle-CNN
 ```
 
 Override it with `TRAIN_DATASET_SOURCE`. The value can be either a Hugging Face
@@ -66,7 +66,7 @@ python -m pip install -r cnn/requirements.txt
 ## Example
 
 ```bash
-git clone https://github.com/dolphinteam/OpenWhistle.git
+git clone https://github.com/OpenWhistleNeurIPS26/OpenWhistle.git
 cd OpenWhistle
 python cnn/train.py
 ```
@@ -107,7 +107,7 @@ python cnn/run_inference_dataset.py korkmaz
 By default, inference downloads and uses:
 
 ```bash
-dolphinteam/OpenWhistle-CNN-VGG16
+OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16
 ```
 
 Use `--checkpoint-path /path/to/model.pt` only when evaluating a local
@@ -119,8 +119,8 @@ Evaluate the published model on the test split only:
 python cnn/train.py --test-only --no-wandb-enabled
 ```
 
-This uses `dolphinteam/OpenWhistle-CNN` split `test` and downloads the
-default checkpoint from `dolphinteam/OpenWhistle-CNN-VGG16`.
+This uses `OpenWhistleNeurIPS26/OpenWhistle-CNN` split `test` and downloads the
+default checkpoint from `OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16`.
 
 Useful environment variables:
 

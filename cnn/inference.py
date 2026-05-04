@@ -43,7 +43,7 @@ def read_file_list(path: Path) -> list[str]:
 @dataclass(frozen=True)
 class InferenceConfig:
     checkpoint_path: Path | None = None
-    model_repo: str = 'dolphinteam/OpenWhistle-CNN-VGG16'
+    model_repo: str = 'OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16'
     model_filename: str = 'model_vgg_final_best.pt'
     recordings_dir: Path = Path('.')
     output_dir: Path = Path('cnn/runs/inference')

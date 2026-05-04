@@ -91,7 +91,6 @@ def get_args():
             "dolph2vec",
             "aves_core",
             "aves_bio",
-            "aves_ow",
             "biolingual",
             "mfcc",
             "spectrogram",
@@ -221,7 +220,6 @@ def main():
     name2model = {
         "aves_core": Aves,
         "aves_bio": Aves,
-        "aves_ow": Aves,
         "biolingual": BioLingual,
         "dolph2vec": Dolph2Vec,
         "mfcc": MFCC,
@@ -236,9 +234,6 @@ def main():
     elif args.model == "aves_core":
         aves_model_path, aves_config_path = get_aves_paths("core")
         actual_sample_rate = get_aves_sample_rate("core")
-    elif args.model == "aves_ow":
-        aves_model_path, aves_config_path = get_aves_paths("ow")
-        actual_sample_rate = get_aves_sample_rate("ow")
     else:
         aves_model_path, aves_config_path = "", ""
 
