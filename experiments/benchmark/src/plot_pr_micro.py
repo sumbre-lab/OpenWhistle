@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
 Build a single figure: micro-averaged precision–recall (OvR, pooled) per model.
-For classification, C is chosen by highest mean k-fold accuracy over --inverse_regs.
-For multilabel detection, C is chosen by highest mean k-fold micro AP.
-Curves use out-of-fold probability estimates with that C.
+Uses the same split protocol as train_lr_splits.py (no k-fold):
+
+- Train / validation / test from load_*_splits().
+- C is chosen by validation accuracy (classification) or validation mAP (detection)
+  over --inverse_regs, with the scaler fit on training data only for that stage.
+- Final logistic regression is fit on train+validation (with scaler fit on that union),
+  then micro PR is computed on the test split probability estimates.
 """
 import argparse
-import random
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,18 +17,10 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-from hf_datasets import (
-    get_detection_label_vector,
-    load_classification_examples,
-    load_detection_examples,
-)
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, average_precision_score, precision_recall_curve
-from sklearn.model_selection import StratifiedKFold
-from sklearn.multioutput import MultiOutputClassifier
-from sklearn.preprocessing import StandardScaler, label_binarize
+from hf_datasets import load_classification_splits, load_detection_splits
+from sklearn.metrics import average_precision_score, precision_recall_curve
+from sklearn.preprocessing import label_binarize
 from tqdm import tqdm
-from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 from conf import (
     dolph2vec_base,
@@ -40,6 +35,14 @@ from models import (
     Dolph2Vec,
     SpectralFeatures,
     Spectrogram,
+)
+from train_lr_splits import (
+    detection_probabilities,
+    embed_split,
+    evaluate_classifier,
+    fit_classifier,
+    normalize_train_eval,
+    set_seed,
 )
 
 
@@ -76,18 +79,6 @@ def chance_level_precision(y: np.ndarray, is_multilabel: bool) -> float:
     return 1.0 / float(n_classes)
 
 
-def set_seed(seed: int = 42):
-    torch.random.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
-
 def get_audio_model(model_name: str, target_sample_rate: int):
     name2model = {
         "aves_core": Aves,
@@ -114,91 +105,6 @@ def get_audio_model(model_name: str, target_sample_rate: int):
     model_args["aves_model_path"] = amodel_path
     model_args["aves_config_path"] = aconfig
     return name2model[model_name](**model_args)
-
-
-def load_embeddings(
-    model_name: str,
-    dataset_name: str,
-    target_sample_rate: int,
-    seed: int,
-):
-    set_seed(seed)
-    model = get_audio_model(model_name, target_sample_rate)
-
-    if dataset_name == "detection":
-        dataset, _ = load_detection_examples()
-    else:
-        dataset, _ = load_classification_examples()
-
-    embeddings = []
-    labels = []
-    for row in tqdm(dataset, desc=f"embed {model_name}", total=len(dataset)):
-        audio = row["audio"]
-        if dataset_name == "detection":
-            label = np.asarray(get_detection_label_vector(row), dtype=np.int64)
-        else:
-            label = int(row["label"])
-        try:
-            embedding = model(audio)
-            embeddings.append(embedding.cpu())
-            labels.append(label)
-        except Exception as e:
-            audio_path = audio.get("path") if isinstance(audio, dict) else None
-            print(f"error processing {audio_path or '<in-memory-audio>'}: {e}")
-
-    x = np.stack([embedding.numpy() for embedding in embeddings])
-    y = np.asarray(labels)
-    if dataset_name == "detection":
-        if y.ndim != 2:
-            raise ValueError(
-                f"detection expects multilabel y with shape (n, n_labels); got {y.shape}"
-            )
-    elif y.ndim != 1:
-        raise ValueError(
-            "plot_pr_micro expects single-label classification (1D labels) for this dataset. "
-            f"Got label array shape {y.shape} for dataset {dataset_name}."
-        )
-    return x, y
-
-
-LR_MAX_ITER = 10000
-
-
-def mean_cv_accuracy(
-    x: np.ndarray,
-    y: np.ndarray,
-    kf: StratifiedKFold,
-    c: float,
-    seed: int,
-) -> float:
-    accs = []
-    for train_idx, val_idx in kf.split(x, y):
-        clf = LogisticRegression(max_iter=LR_MAX_ITER, random_state=seed, C=c)
-        clf.fit(x[train_idx], y[train_idx])
-        accs.append(accuracy_score(y[val_idx], clf.predict(x[val_idx])))
-    return float(np.mean(accs))
-
-
-def oof_predict_proba(
-    x: np.ndarray,
-    y: np.ndarray,
-    kf: StratifiedKFold,
-    c: float,
-    seed: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Out-of-fold probability matrix aligned to sorted global class list."""
-    classes_sorted = np.sort(np.unique(y))
-    n_classes = len(classes_sorted)
-    n_samples = len(y)
-    oof = np.zeros((n_samples, n_classes))
-    for train_idx, val_idx in kf.split(x, y):
-        clf = LogisticRegression(max_iter=LR_MAX_ITER, random_state=seed, C=c)
-        clf.fit(x[train_idx], y[train_idx])
-        proba = clf.predict_proba(x[val_idx])
-        for j, c_lab in enumerate(clf.classes_):
-            gi = int(np.searchsorted(classes_sorted, c_lab))
-            oof[val_idx, gi] = proba[:, j]
-    return oof, classes_sorted
 
 
 def micro_pr_curve(y_true: np.ndarray, y_score: np.ndarray, classes: np.ndarray):
@@ -233,57 +139,26 @@ def save_pdf_from_png(png_path: Path, pdf_path: Path, dpi: float = 150.0):
         image.convert("RGB").save(pdf_path, "PDF", resolution=dpi)
 
 
-def mean_cv_micro_ap_detection(
-    x: np.ndarray,
-    y: np.ndarray,
-    kf: MultilabelStratifiedKFold,
-    c: float,
-    seed: int,
-) -> float:
-    """Mean validation micro AP across folds (multilabel detection)."""
-    aps = []
-    for train_idx, val_idx in kf.split(x, y):
-        base_clf = LogisticRegression(max_iter=LR_MAX_ITER, random_state=seed, C=c)
-        clf = MultiOutputClassifier(base_clf)
-        clf.fit(x[train_idx], y[train_idx])
-        y_score = clf.predict_proba(x[val_idx])
-        y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
-        aps.append(
-            average_precision_score(y[val_idx], y_score, average="micro")
-        )
-    return float(np.mean(aps))
-
-
-def oof_predict_proba_multilabel(
-    x: np.ndarray,
-    y: np.ndarray,
-    kf: MultilabelStratifiedKFold,
-    c: float,
-    seed: int,
-) -> np.ndarray:
-    n_samples, n_labels = y.shape
-    oof = np.zeros((n_samples, n_labels))
-    for train_idx, val_idx in kf.split(x, y):
-        base_clf = LogisticRegression(max_iter=LR_MAX_ITER, random_state=seed, C=c)
-        clf = MultiOutputClassifier(base_clf)
-        clf.fit(x[train_idx], y[train_idx])
-        y_score = clf.predict_proba(x[val_idx])
-        y_score = np.array([np.asarray(scores)[:, 1] for scores in y_score]).T
-        oof[val_idx] = y_score
-    return oof
-
-
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--kfold", type=int, default=5)
+    p.add_argument("--seed", type=int, default=42, help="Embedding / numpy seed.")
     p.add_argument(
-        "--no_normalize",
+        "--lr_seed",
+        default=None,
+        type=int,
+        help=(
+            "Random state for the final logistic regression fit used for the PR curve "
+            "(same role as the first seed in train_lr_splits --num_seeds). "
+            "Defaults to --seed."
+        ),
+    )
+    p.add_argument(
+        "--no_normalize_data",
         dest="normalize_data",
         action="store_false",
-        help="Disable StandardScaler on embeddings before logistic regression (default: scale).",
+        default=True,
+        help="Disable feature standardization before logistic regression.",
     )
-    p.set_defaults(normalize_data=True)
     p.add_argument(
         "--dataset_name",
         default="classification",
@@ -303,7 +178,7 @@ def parse_args():
         type=float,
         nargs="+",
         default=[0.1, 1.0, 10.0],
-        help="Candidate C values; best is chosen by mean CV accuracy per model.",
+        help="Candidate C values; best is chosen on the validation split (accuracy or mAP).",
     )
     p.add_argument("--target_sample_rate", type=int, default=44100)
     p.add_argument(
@@ -322,6 +197,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    lr_seed = args.lr_seed if args.lr_seed is not None else args.seed
     set_seed(args.seed)
 
     script_dir = Path(__file__).resolve().parent
@@ -331,11 +207,9 @@ def main():
 
     is_detection = args.dataset_name == "detection"
     if is_detection:
-        kf = MultilabelStratifiedKFold(
-            n_splits=args.kfold, shuffle=True, random_state=args.seed
-        )
+        dataset, _ = load_detection_splits()
     else:
-        kf = StratifiedKFold(n_splits=args.kfold, shuffle=True, random_state=args.seed)
+        dataset, _ = load_classification_splits()
 
     task = "multilabel_detection" if is_detection else "multiclass_micro_ovr"
 
@@ -344,35 +218,56 @@ def main():
     curve_records: list[dict] = []
     chance_prec: float | None = None
     for model_name in args.models:
-        x, y = load_embeddings(
-            model_name,
-            args.dataset_name,
-            args.target_sample_rate,
-            args.seed,
+        set_seed(args.seed)
+        model = get_audio_model(model_name, args.target_sample_rate)
+
+        x_train, y_train = embed_split(
+            dataset["train"], "train", args.dataset_name, model
         )
+        x_validation, y_validation = embed_split(
+            dataset["validation"], "validation", args.dataset_name, model
+        )
+        x_test, y_test = embed_split(dataset["test"], "test", args.dataset_name, model)
+
         if chance_prec is None:
-            chance_prec = chance_level_precision(y, is_detection)
-        if args.normalize_data:
-            x = StandardScaler().fit_transform(x)
-
-        best_c = None
-        best_metric = -1.0
-        for c in args.inverse_regs:
             if is_detection:
-                metric = mean_cv_micro_ap_detection(x, y, kf, c, args.seed)
+                y_all = np.vstack([y_train, y_validation, y_test])
             else:
-                metric = mean_cv_accuracy(x, y, kf, c, args.seed)
-            if metric > best_metric:
-                best_metric = metric
-                best_c = c
+                y_all = np.concatenate([y_train, y_validation, y_test])
+            chance_prec = chance_level_precision(y_all, is_detection)
 
-        assert best_c is not None
+        x_train_for_validation, x_validation_for_selection = normalize_train_eval(
+            x_train, x_validation, args.normalize_data
+        )
+        validation_scores = []
+        for c in args.inverse_regs:
+            clf = fit_classifier(
+                args.dataset_name, args.seed, c, x_train_for_validation, y_train
+            )
+            score = evaluate_classifier(
+                args.dataset_name, clf, x_validation_for_selection, y_validation
+            )
+            validation_scores.append((c, score))
+        best_c, _ = max(validation_scores, key=lambda item: item[1])
+
+        x_final_train = np.concatenate([x_train, x_validation], axis=0)
+        y_final_train = np.concatenate([y_train, y_validation], axis=0)
+        x_final_train, x_test_for_evaluation = normalize_train_eval(
+            x_final_train, x_test, args.normalize_data
+        )
+
+        set_seed(lr_seed)
+        clf = fit_classifier(
+            args.dataset_name, lr_seed, best_c, x_final_train, y_final_train
+        )
+
         if is_detection:
-            oof_score = oof_predict_proba_multilabel(x, y, kf, best_c, args.seed)
-            precision, recall, ap = micro_pr_curve_multilabel(y, oof_score)
+            test_score = detection_probabilities(clf, x_test_for_evaluation)
+            precision, recall, ap = micro_pr_curve_multilabel(y_test, test_score)
         else:
-            oof_score, classes = oof_predict_proba(x, y, kf, best_c, args.seed)
-            precision, recall, ap = micro_pr_curve(y, oof_score, classes)
+            test_score = clf.predict_proba(x_test_for_evaluation)
+            classes = np.sort(clf.classes_)
+            precision, recall, ap = micro_pr_curve(y_test, test_score, classes)
         precision, recall = orient_pr_curve(precision, recall)
 
         for i in range(len(recall)):
@@ -381,7 +276,8 @@ def main():
                     "dataset_name": args.dataset_name,
                     "task": task,
                     "seed": args.seed,
-                    "kfold": args.kfold,
+                    "lr_seed": lr_seed,
+                    "eval_split": "test",
                     "normalize_data": args.normalize_data,
                     "dolph2vec_model": dolph2vec_base,
                     "model": model_name,
@@ -408,7 +304,8 @@ def main():
                 "dataset_name": args.dataset_name,
                 "task": task,
                 "seed": args.seed,
-                "kfold": args.kfold,
+                "lr_seed": lr_seed,
+                "eval_split": "test",
                 "normalize_data": args.normalize_data,
                 "dolph2vec_model": dolph2vec_base,
                 "model": "Chance",
@@ -432,7 +329,13 @@ def main():
     ax.set_ylabel("Precision")
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.05)
-    ax.legend(loc="upper right", fontsize=9, frameon=False)
+    ax.legend(
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        fontsize=9,
+        frameon=False,
+        borderaxespad=0,
+    )
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
 
@@ -440,12 +343,12 @@ def main():
     csv_path = out_dir / f"{out_path.stem}_curves.csv"
     pd.DataFrame(curve_records).to_csv(csv_path, index=False)
 
-    fig.savefig(out_path, dpi=150)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
     pdf_path = out_path.with_suffix(".pdf")
     if args.dataset_name == "classification":
         save_pdf_from_png(out_path, pdf_path)
     else:
-        fig.savefig(pdf_path)
+        fig.savefig(pdf_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved {out_path}")
     print(f"Saved {pdf_path}")
