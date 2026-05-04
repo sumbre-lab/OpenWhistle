@@ -19,6 +19,3 @@ Logistic Regression Test Accuracy: 0.7511 ± 0.0205
 Model aves_core on dataset classification:
 Best C = 0.1 (validation Accuracy = 0.6711)
 Logistic Regression Test Accuracy: 0.6800 ± 0.0221
-Model aves_ow on dataset classification:
-Best C = 0.1 (validation Accuracy = 0.8067)
-Logistic Regression Test Accuracy: 0.7800 ± 0.0196
