@@ -1,5 +1,6 @@
 import argparse
 import csv
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -42,7 +43,7 @@ def read_file_list(path: Path) -> list[str]:
 @dataclass(frozen=True)
 class InferenceConfig:
     checkpoint_path: Path | None = None
-    model_repo: str = 'dolphinteam/OpenWhistle-1.0-CNN-VGG16'
+    model_repo: str = 'dolphinteam/OpenWhistle-CNN-VGG16'
     model_filename: str = 'model_vgg_final_best.pt'
     recordings_dir: Path = Path('.')
     output_dir: Path = Path('cnn/runs/inference')
@@ -52,6 +53,8 @@ class InferenceConfig:
     end_time: float | None = None
     save_positive_spectrograms: bool = False
     specific_files_path: Path | None = None
+    recursive: bool = False
+    limit: int = 0
     cpu_only: bool = False
     spectrogram_config: SpectrogramConfig = field(default_factory=SpectrogramConfig)
 
@@ -89,6 +92,18 @@ class InferenceConfig:
             default=defaults.save_positive_spectrograms,
         )
         parser.add_argument('--specific-files', type=Path, default=defaults.specific_files_path)
+        parser.add_argument(
+            '--recursive',
+            action='store_true',
+            default=defaults.recursive,
+            help='Search WAV/FLAC files recursively under --recordings-dir.',
+        )
+        parser.add_argument(
+            '--limit',
+            type=int,
+            default=defaults.limit,
+            help='Optional cap on the number of files to process; 0 means no cap.',
+        )
         parser.add_argument('--cpu-only', action='store_true', default=defaults.cpu_only)
         parser.add_argument(
             '--target-fs',
@@ -124,6 +139,8 @@ class InferenceConfig:
             end_time=args.end_time,
             save_positive_spectrograms=args.save_positive_spectrograms,
             specific_files_path=args.specific_files,
+            recursive=args.recursive,
+            limit=args.limit,
             cpu_only=args.cpu_only,
             spectrogram_config=spectrogram_config,
         )
@@ -141,6 +158,8 @@ class InferenceConfig:
             raise ValueError('end_time must be greater than start_time.')
         if self.specific_files_path is not None and not self.specific_files_path.exists():
             raise FileNotFoundError(f'Specific file list not found: {self.specific_files_path}')
+        if self.limit < 0:
+            raise ValueError('limit must be zero or positive.')
 
     def resolved_checkpoint_path(self) -> Path:
         if self.checkpoint_path is not None:
@@ -213,16 +232,38 @@ def load_inference_model(checkpoint_path: Path, cpu_only: bool) -> InferenceMode
 def audio_files(config: InferenceConfig) -> list[Path]:
     suffixes = {'.wav', '.flac'}
     if config.specific_files_path is not None:
-        return [
+        files = [
             config.recordings_dir / item
             for item in read_file_list(config.specific_files_path)
             if (config.recordings_dir / item).suffix.lower() in suffixes
         ]
-    return sorted(
-        path
-        for path in config.recordings_dir.iterdir()
-        if path.is_file() and path.suffix.lower() in suffixes
-    )
+    else:
+        iterator = (
+            config.recordings_dir.rglob('*')
+            if config.recursive
+            else config.recordings_dir.iterdir()
+        )
+        files = sorted(
+            path
+            for path in iterator
+            if path.is_file() and path.suffix.lower() in suffixes
+        )
+    if config.limit > 0:
+        files = files[: config.limit]
+    return files
+
+def relative_file_name(audio_path: Path, recordings_dir: Path) -> str:
+    try:
+        return audio_path.relative_to(recordings_dir).as_posix()
+    except ValueError:
+        return audio_path.name
+
+def output_stem(audio_path: Path, recordings_dir: Path) -> str:
+    relative_name = relative_file_name(audio_path, recordings_dir)
+    stem_path = Path(relative_name).with_suffix('')
+    if len(stem_path.parts) == 1:
+        return audio_path.stem
+    return re.sub(r'[^A-Za-z0-9._=-]+', '__', stem_path.as_posix()).strip('_')
 
 def predict_batch(model: InferenceModel, images_uint8: np.ndarray) -> np.ndarray:
     inputs = normalize_uint8_batch_to_torch(
@@ -276,7 +317,9 @@ def process_file(
     total_windows = max(0, len(audio) // samples_per_window)
     spectrogram_plan = build_spectrogram_plan(fs, spectrogram_config)
     rows: list[dict[str, object]] = []
-    file_output_dir = config.output_dir / audio_path.stem
+    file_name = relative_file_name(audio_path, config.recordings_dir)
+    file_stem = output_stem(audio_path, config.recordings_dir)
+    file_output_dir = config.output_dir / file_stem
     positives_dir = file_output_dir / 'positive'
     for batch_index in range(0, total_windows, config.batch_size):
         batch_start = batch_index * samples_per_window
@@ -298,7 +341,7 @@ def process_file(
             end = round(start + spectrogram_config.sliding_window, 2)
             rows.append(
                 {
-                    'file_name': audio_path.name,
+                    'file_name': file_name,
                     'initial_point': start,
                     'finish_point': end,
                     'confidence': float(score),
@@ -306,7 +349,7 @@ def process_file(
             )
             if config.save_positive_spectrograms:
                 save_positive_spectrogram(images[index], start, end, positives_dir)
-    prediction_path = file_output_dir / f'{audio_path.stem}.wav_predictions.csv'
+    prediction_path = file_output_dir / f'{file_stem}.wav_predictions.csv'
     write_prediction_csv(prediction_path, rows)
     return rows
 
