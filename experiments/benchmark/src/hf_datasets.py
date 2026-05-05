@@ -3,9 +3,9 @@ from __future__ import annotations
 from datasets import Audio, ClassLabel, Sequence, concatenate_datasets, load_dataset
 
 
-CLASSIFICATION_DATASET_ID = "dolphinteam/OpenWhistle-1.0-Classification-Finetuning"
+CLASSIFICATION_DATASET_ID = "OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning"
 CLASSIFICATION_BALANCED_CONFIG_NAME = "balanced"
-DETECTION_DATASET_ID = "dolphinteam/OpenWhistle-1.0-Detection-Finetuning"
+DETECTION_DATASET_ID = "OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning"
 
 DETECTION_ONE_HOT_COLUMNS = (
     "SW_Neo",

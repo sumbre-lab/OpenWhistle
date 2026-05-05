@@ -9,17 +9,30 @@ This repository accompanies the **OpenWhistle** paper. It provides code to acces
 
 ## Hugging Face datasets
 
-| Resource | Hugging Face link |
-|----------|-------------------|
-| **Pretraining corpus** (long-form unlabeled / weakly processed audio and segments for self-supervised and large-scale use) | [dolphinteam/OpenWhistle-1.0-Pretraining](https://huggingface.co/datasets/dolphinteam/OpenWhistle-1.0-Pretraining) |
-| **Classification benchmark** (expert-annotated clips and labels) | [dolphinteam/OpenWhistle-1.0-Classification-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-1.0-Classification-Finetuning) |
-| **Detection benchmark** (expert-annotated windows for detection) | [dolphinteam/OpenWhistle-1.0-Detection-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-1.0-Detection-Finetuning) |
+| Resource | Hugging Face link | Review samples |
+|----------|-------------------|----------------|
+| **Pretraining corpus** (long-form unlabeled / weakly processed audio and segments for self-supervised and large-scale use) | [OpenWhistleNeurIPS26/OpenWhistle-Pretraining](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Pretraining) | [review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Pretraining/viewer/review-sample/train) |
+| **Classification benchmark** (expert-annotated clips and labels) | [OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning) | [balanced-review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning/viewer/balanced-review-sample/train) |
+| **Detection benchmark** (expert-annotated windows for detection) | [OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning) | n/a |
+| **CNN training set** (audio windows, spectrograms, and binary whistle/noise labels) | [OpenWhistleNeurIPS26/OpenWhistle-CNN](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-CNN) | [review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-CNN/viewer/review-sample/train) |
 
 ## Repository layout
 
-- **`experiments/`** — code to **reproduce the paper’s experiments** (notably the tabular and audio benchmark). The main entry point is the benchmark driver under `experiments/benchmark/` (see below). Additional material for large-scale pretraining (e.g. self-supervised audio) lives under `experiments/pretraining/`.
-- **`cnn/`** — **binary whistle presence detection** and **whistle segmentation** in the overall pipeline: VGG16-based training and inference on spectrograms, integrated with the public CNN training data and checkpoints on the Hub. See [`cnn/README.md`](cnn/README.md) for environment setup, training, and inference.
-- **`datasets_figures/`** — scripts to build the **dataset overview figures** used in the paper (longitudinal extent, temporal coverage, class distributions, SNR summaries, etc.). See [`datasets_figures/README.md`](datasets_figures/README.md) for how to run the plot scripts.
+```text
+.
+├── cnn/                    # CNN whistle presence detection and segmentation
+├── datasets_figures/       # scripts for the dataset overview figures
+├── experiments/
+│   ├── benchmark/          # frozen-embedding + logistic-regression benchmark
+│   └── pretraining/        # self-supervised pretraining code
+├── Annotation_Pipeline.png
+└── README.md
+```
+
+- **`experiments/benchmark/`** reproduces the paper benchmark on the classification and detection Hugging Face datasets. The main entry point is [`experiments/benchmark/run_all.sh`](experiments/benchmark/run_all.sh), described below.
+- **`experiments/pretraining/`** contains the large-scale self-supervised pretraining material.
+- **`cnn/`** contains the VGG16-based whistle presence detection and segmentation branch, integrated with the public CNN dataset and checkpoints on the Hub. See [`cnn/README.md`](cnn/README.md) for setup, training, and inference.
+- **`datasets_figures/`** builds the dataset overview figures used in the manuscript, including longitudinal coverage, class distributions, and SNR summaries. See [`datasets_figures/README.md`](datasets_figures/README.md) for plotting instructions.
 
 ## Running the benchmark
 

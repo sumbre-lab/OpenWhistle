@@ -84,7 +84,7 @@ class TrainConfig:
     learning_rate: float = 1e-5
     random_state: int = 7
     num_workers: int = 0
-    dataset_source: str = 'dolphinteam/OpenWhistle-1.0-CNN'
+    dataset_source: str = 'OpenWhistleNeurIPS26/OpenWhistle-CNN'
     models_dir: str = 'cnn/runs/models'
     figs_dir: str = 'cnn/runs/figures'
     reports_dir: str = 'cnn/runs/reports'
@@ -117,7 +117,7 @@ class TrainConfig:
     min_learning_rate: float = 1e-6
     spectrogram_cache_dir: Path = Path('cnn/runs/spectrogram_cache')
     checkpoint_path: str | None = None
-    checkpoint_repo: str = 'dolphinteam/OpenWhistle-1.0-CNN-VGG16'
+    checkpoint_repo: str = 'OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16'
     checkpoint_filename: str = 'model_vgg_final_best.pt'
 
     @classmethod

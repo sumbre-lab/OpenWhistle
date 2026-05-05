@@ -19,7 +19,7 @@ whistle detection.
 By default, training reads the public Hugging Face dataset:
 
 ```bash
-dolphinteam/OpenWhistle-1.0-CNN
+OpenWhistleNeurIPS26/OpenWhistle-CNN
 ```
 
 Override it with `TRAIN_DATASET_SOURCE`. The value can be either a Hugging Face
@@ -31,42 +31,39 @@ Use Python 3.12. Python 3.13 is not recommended for this environment: some
 scientific packages may not have compatible wheels for the pinned stack and pip
 can fall back to building SciPy locally, which requires a Fortran compiler.
 
-The recommended setup is a dedicated conda environment:
+The recommended setup is a dedicated Python environment installed with pip:
 
 ```bash
-cd cnn
-conda env create -f environment.yml
-conda activate openwhistle-cnn
-cd ..
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r cnn/requirements.txt
 ```
 
-Then install PyTorch separately so the CUDA wheel matches the machine:
+If you need a specific CUDA wheel, install PyTorch with the index URL matching
+the machine before installing the requirements:
 
 ```bash
 python -m pip install --upgrade pip
 python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+python -m pip install -r cnn/requirements.txt
 ```
 
 Use the CPU wheel if the GPU driver or card is not compatible:
 
 ```bash
 python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -r cnn/requirements.txt
 ```
 
 If `torch.cuda.is_available()` is `False`, either install a PyTorch wheel built
 for a CUDA version supported by the NVIDIA driver, or run the scripts with
 `--cpu-only`.
 
-Without conda, install the non-PyTorch dependencies with:
-
-```bash
-python -m pip install -r cnn/requirements.txt
-```
-
 ## Example
 
 ```bash
-git clone https://github.com/dolphinteam/OpenWhistle.git
+git clone https://github.com/OpenWhistleNeurIPS26/OpenWhistle.git
 cd OpenWhistle
 python cnn/train.py
 ```
@@ -79,10 +76,35 @@ python cnn/inference.py \
   --output-dir /path/to/predictions
 ```
 
+For nested external datasets such as WMMSD/WMSD, DCLDE, or raw Korkmaz et al.
+recordings, use recursive discovery:
+
+```bash
+python cnn/inference.py \
+  --recordings-dir /path/to/external_dataset \
+  --output-dir cnn/runs/inference_external \
+  --recursive
+```
+
+External dataset presets are managed in `cnn/inference_conf.py`. To run the CNN
+inference with those presets:
+
+```bash
+python cnn/run_inference_dataset.py wmmsd dclde
+```
+
+For Korkmaz et al. 2023, download the Google Drive folder locally and point the
+preset to the audio folder:
+
+```bash
+OPENWHISTLE_CNN_KORKMAZ_DIR=/path/to/korkmaz_audio \
+python cnn/run_inference_dataset.py korkmaz
+```
+
 By default, inference downloads and uses:
 
 ```bash
-dolphinteam/OpenWhistle-1.0-CNN-VGG16
+OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16
 ```
 
 Use `--checkpoint-path /path/to/model.pt` only when evaluating a local
@@ -94,8 +116,8 @@ Evaluate the published model on the test split only:
 python cnn/train.py --test-only --no-wandb-enabled
 ```
 
-This uses `dolphinteam/OpenWhistle-1.0-CNN` split `test` and downloads the
-default checkpoint from `dolphinteam/OpenWhistle-1.0-CNN-VGG16`.
+This uses `OpenWhistleNeurIPS26/OpenWhistle-CNN` split `test` and downloads the
+default checkpoint from `OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16`.
 
 Useful environment variables:
 

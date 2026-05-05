@@ -11,7 +11,7 @@ Frozen **audio embeddings** followed by **linear probes** (logistic regression) 
 ### Classification (`--dataset_name classification`)
 
 - **Goal:** assign each short clip to a **single whistle type** (multiclass).
-- **Data:** [dolphinteam/OpenWhistle-1.0-Classification-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-1.0-Classification-Finetuning) (default config `balanced`), with **train / validation / test** splits.
+- **Data:** [OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning) (default config `balanced`), with **train / validation / test** splits.
 - **Head:** one multinomial **logistic regression** on the embedding.
 - **Validation:** among inverse-regularization strengths **C ∈ {0.1, 1, 10}**, keep the **C** that maximizes **validation accuracy**.
 - **Test:** refit on **train ∪ validation** with the chosen **C**; report **test accuracy** (mean over several RNG seeds, with bootstrap dispersion; see `train_lr_splits.py`).
@@ -19,7 +19,7 @@ Frozen **audio embeddings** followed by **linear probes** (logistic regression) 
 ### Detection (`--dataset_name detection`)
 
 - **Goal:** for each analysis window, predict **which whistle types are present** (multi-label, one binary sub-task per type).
-- **Data:** [dolphinteam/OpenWhistle-1.0-Detection-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-1.0-Detection-Finetuning) (`default` config), loaded from this repo’s `data/` tree (see `src/hf_datasets.py`). Splits: **train / validation / test**.
+- **Data:** [OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning) (`default` config), loaded from this repo’s `data/` tree (see `src/hf_datasets.py`). Splits: **train / validation / test**.
 - **Label vector:** eight binary dimensions (signature whistles **SW_***, one non-signature bucket **NSW_1**), as in `DETECTION_ONE_HOT_COLUMNS` in `hf_datasets.py`.
 - **Head:** **MultiOutputClassifier** over logistic regressions (one classifier per label).
 - **Validation:** choose **C** that maximizes **validation mean average precision (mAP)** over labels (probability-based; see `metrics.py`).
@@ -48,6 +48,21 @@ All models map each clip’s waveform to a **fixed vector**; only the linear pro
 | **`aves_core`** | **AVES** “core” checkpoint (44.1 kHz). |
 | **`aves_bio`** | **AVES** “bio” variant. |
 
+## Installation
+
+Use Python 3.12 and install the benchmark dependencies with pip:
+
+```bash
+cd experiments/benchmark
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+The requirements include the standard audio/ML stack plus `esp-aves`, which
+provides the `aves` feature extractor used by the AVES benchmark models. If you
+need a specific CUDA or CPU PyTorch wheel, install `torch` and `torchaudio` from
+the matching PyTorch index before installing the requirements.
+
 ## Run everything (all models × both tasks)
 
 From this directory:
@@ -69,10 +84,6 @@ python src/train_lr_splits.py --model dolph2vec --dataset_name detection --inver
 ```
 
 Useful flags (see `train_lr_splits.py`): `--seed`, `--num_seeds`, `--num_bootstrap`, `--no_normalize_data`, `--target_sample_rate`.
-
-### Dependencies
-
-The code expects **PyTorch**, **Hugging Face `datasets`**, **librosa**, **scikit-learn**, **tqdm**, and (for AVES) the **`aves`** feature extractor API referenced in `models.py`. Install what your environment is missing before running; exact pins are left to your stack (CUDA vs CPU, etc.).
 
 ## Outputs
 

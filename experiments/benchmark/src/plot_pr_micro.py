@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from PIL import Image
 from hf_datasets import load_classification_splits, load_detection_splits
 from sklearn.metrics import average_precision_score, precision_recall_curve
 from sklearn.preprocessing import label_binarize
@@ -48,12 +49,17 @@ from train_lr_splits import (
 def color_for_model(model_name: str) -> str:
     """Fixed colors for common backbones; unknown models use gray."""
     n = model_name.lower()
+    fixed_colors = {
+        "aves_core": "#2e7d32",  # green
+        "aves_bio": "#f9a825",  # amber
+        "biolingual": "#00838f",  # teal
+        "mfcc": "#1565c0",  # blue
+        "spectrogram": "#ef6c00",  # orange
+    }
+    if n in fixed_colors:
+        return fixed_colors[n]
     if "dolph2vec" in n:
         return "#c62828"  # red
-    if n == "spectrogram":
-        return "#ef6c00"  # orange
-    if n == "mfcc":
-        return "#1565c0"  # blue
     if "spectral" in n:
         return "#6a1b9a"  # purple
     return "#757575"
@@ -77,7 +83,6 @@ def get_audio_model(model_name: str, target_sample_rate: int):
     name2model = {
         "aves_core": Aves,
         "aves_bio": Aves,
-        "aves_ow": Aves,
         "biolingual": BioLingual,
         "dolph2vec": Dolph2Vec,
         "mfcc": MFCC,
@@ -90,9 +95,6 @@ def get_audio_model(model_name: str, target_sample_rate: int):
     elif model_name == "aves_core":
         amodel_path, aconfig = get_aves_paths("core")
         target_sample_rate = get_aves_sample_rate("core")
-    elif model_name == "aves_ow":
-        amodel_path, aconfig = get_aves_paths("ow")
-        target_sample_rate = get_aves_sample_rate("ow")
     else:
         amodel_path, aconfig = "", ""
     model_args = dict(
@@ -122,6 +124,19 @@ def micro_pr_curve_multilabel(y_true: np.ndarray, y_score: np.ndarray):
     precision, recall, _ = precision_recall_curve(y_true.ravel(), y_score.ravel())
     ap = average_precision_score(y_true, y_score, average="micro")
     return precision, recall, ap
+
+
+def orient_pr_curve(precision: np.ndarray, recall: np.ndarray):
+    """Return PR points with recall increasing left-to-right for plotting/export."""
+    if len(recall) > 1 and recall[0] > recall[-1]:
+        return precision[::-1], recall[::-1]
+    return precision, recall
+
+
+def save_pdf_from_png(png_path: Path, pdf_path: Path, dpi: float = 150.0):
+    """Write a raster PDF from the PNG to avoid viewer-specific vector flips."""
+    with Image.open(png_path) as image:
+        image.convert("RGB").save(pdf_path, "PDF", resolution=dpi)
 
 
 def parse_args():
@@ -253,6 +268,7 @@ def main():
             test_score = clf.predict_proba(x_test_for_evaluation)
             classes = np.sort(clf.classes_)
             precision, recall, ap = micro_pr_curve(y_test, test_score, classes)
+        precision, recall = orient_pr_curve(precision, recall)
 
         for i in range(len(recall)):
             curve_records.append(
@@ -329,7 +345,10 @@ def main():
 
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     pdf_path = out_path.with_suffix(".pdf")
-    fig.savefig(pdf_path, bbox_inches="tight")
+    if args.dataset_name == "classification":
+        save_pdf_from_png(out_path, pdf_path)
+    else:
+        fig.savefig(pdf_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved {out_path}")
     print(f"Saved {pdf_path}")
