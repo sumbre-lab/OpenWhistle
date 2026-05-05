@@ -1,9 +1,8 @@
-import abc
 from abc import ABC, abstractmethod
-from torch.nn import Module
-from typing import Union,List,Dict,Tuple
-from pathlib import  Path
-from datasets import DatasetDict,IterableDatasetDict
+from pathlib import Path
+from typing import Union
+
+from datasets import DatasetDict, IterableDatasetDict
 
 class forPretraining(ABC):
 
@@ -46,19 +45,4 @@ class forPretraining(ABC):
     def pretransform_dataset(cls, ds: Union[DatasetDict,IterableDatasetDict],path: Union[str,Path]) -> Union[DatasetDict,IterableDatasetDict]:
         ## Some network needs to perform aditional pre-processing of the dataset
         # which we allow to be done in streaming by returning an IterableDatasetDict.
-        pass
-
-class forPostAnalysis(ABC,Module):
-    @abstractmethod
-    def layerzip(cls) -> List[Tuple[str,Dict]]:
-        # Returns tuples of names of layer-block (like "convolutions"), [number of layers,layers width (number of unit)].
-        # A layer-block is defined as a set of layers that returns vectors of equal dimensions.
-        pass
-
-    @abstractmethod
-    def preprocessor_from_pretrained(self,path : Union[str,Path]):
-        pass
-
-    @abstractmethod
-    def read_activity(self,*kwargs):
         pass

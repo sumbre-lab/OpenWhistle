@@ -1,22 +1,61 @@
-# Pretraining
+# Wav2Vec2.0 Pretraining
 
-The pretraining code now accepts either:
+This folder contains the self-supervised Wav2Vec2.0 pretraining code used for
+the OpenWhistle NeurIPS paper.
 
-- a local Hugging Face dataset directory saved with `save_to_disk(...)`
-- a remote Hugging Face dataset id such as `OpenWhistleNeurIPS26/OpenWhistle-Pretraining`
+The training source is the public Hugging Face corpus:
 
-For the OpenWhistle pretraining corpus, the recommended source is:
+```text
+OpenWhistleNeurIPS26/OpenWhistle-Pretraining
+```
 
-- dataset id: `OpenWhistleNeurIPS26/OpenWhistle-Pretraining`
-- config: `default`
+The resulting checkpoint corresponds to:
 
-The dataset exposes raw `audio` at 96 kHz plus metadata columns. During
-training, the loader now accepts that schema directly and casts the audio to the
-44.1 kHz rate expected by the Wav2Vec2 preprocessor.
+```text
+OpenWhistleNeurIPS26/OpenWhistle-Wav2Vec2.0
+```
 
-## Example
+## Installation
 
-With the submitit launcher:
+Use Python 3.12 and install the pretraining dependencies with pip:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install torch transformers datasets submitit julius numpy pandas
+```
+
+From the repository root, expose the pretraining package:
+
+```bash
+export PYTHONPATH="$PWD/experiments/pretraining:$PYTHONPATH"
+```
+
+If launching on SLURM, set the cluster fields used by `submitit`:
+
+```bash
+export OPENWHISTLE_SLURM_PARTITION=your_gpu_partition
+export OPENWHISTLE_SLURM_ACCOUNT=your_slurm_account
+```
+
+Set a Hugging Face token only if your environment needs authenticated dataset
+access:
+
+```bash
+export HF_TOKEN=hf_your_token
+```
+
+## Run
+
+Smoke test on the small review split:
+
+```bash
+python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
+  --path_data OpenWhistleNeurIPS26/OpenWhistle-Pretraining \
+  --path_data_config review-sample \
+  --output_dir experiments/pretraining/artifacts/outputs/review_sample
+```
+
+Full pretraining run:
 
 ```bash
 python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
@@ -24,20 +63,13 @@ python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
   --path_data_config default
 ```
 
-For a small smoke test, use the deterministic review subset:
+## Outputs
 
-```bash
-python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
-  --path_data OpenWhistleNeurIPS26/OpenWhistle-Pretraining \
-  --path_data_config review-sample
+By default, checkpoints and logs are written under:
+
+```text
+experiments/pretraining/artifacts/outputs/pretraining_run/
 ```
 
-## Anonymous Defaults
-
-The pretraining code has been cleaned so it no longer depends on personal paths,
-hard-coded SLURM accounts, or a committed Hugging Face token.
-
-- Local artifacts default to `experiments/pretraining/artifacts/`
-- Hugging Face authentication is read from `HF_TOKEN` or `HUGGINGFACE_HUB_TOKEN`
-- Hugging Face repo ownership is read from `HF_REPO_OWNER`, `HF_USERNAME`, or `HF_NAMESPACE`
-- Optional cluster settings are read from `OPENWHISTLE_SLURM_PARTITION` and `OPENWHISTLE_SLURM_ACCOUNT`
+Audio is loaded from Hugging Face and cast to the 44.1 kHz sampling rate defined
+in `ANNpretraining/models/wav2vec2/config/preprocessor_dolphin.json`.

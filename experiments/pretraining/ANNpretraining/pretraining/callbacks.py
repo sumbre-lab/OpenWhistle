@@ -1,5 +1,5 @@
 import numpy as np
-from transformers import TrainerState,TrainerControl,TrainingArguments
+from transformers import TrainerControl, TrainerState, TrainingArguments
 from transformers.trainer_callback import DefaultFlowCallback
 
 class LogarithmicStepSaveCallback(DefaultFlowCallback):
@@ -43,8 +43,3 @@ class LogarithmicStepSaveCallback(DefaultFlowCallback):
         else:
             control.should_save = False
             return control
-
-class AllStepSaveCallback(LogarithmicStepSaveCallback):
-    def __init__(self,output_dir:str,save_steps=1):
-        super().__init__(output_dir)
-        self.schedule = np.arange(save_steps-1,400000,step=save_steps)

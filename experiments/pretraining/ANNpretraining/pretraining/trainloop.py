@@ -3,16 +3,13 @@ import transformers
 import os
 import json
 from pathlib import Path
-from transformers import  HfArgumentParser, TrainingArguments
+from transformers import HfArgumentParser, TrainingArguments
 import datasets
 
 from ANNpretraining.pretraining.trainers import PretrainingTrainer
 from ANNpretraining.pretraining.checkpoint_utils import checkpoint_loading
-from ANNpretraining.pretraining.callbacks import LogarithmicStepSaveCallback,AllStepSaveCallback
-
-from ANNpretraining.models.wav2vec2.utils_data import get_collator_Pretraining
+from ANNpretraining.pretraining.callbacks import LogarithmicStepSaveCallback
 from ANNpretraining.models import IMPLEMENTED_MODELS
-import numpy as np
 
 
 def model_load(modelType:str,path_model:str):
