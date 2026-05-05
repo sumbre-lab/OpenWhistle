@@ -14,7 +14,8 @@ class DataCollatorForWav2Vec2Pretraining:
     This data collator is to be used with Datasets saved in the Datasets spirit, in the pyarrow format.
 
     Important: We assume that Wav2vec2FeatureExtractor was all-ready applied once on the dataset
-    (i.e the dataset is allready preprocessed: normalize (if set) and with a sampling rate of 16000 Hz)
+    (i.e the dataset is allready preprocessed: normalize (if set) and resampled to the
+    feature extractor sampling rate)
     This should be done when the dataset is saved in the pyarrow format that is used by HuggingFace!
 
     Args:
@@ -46,7 +47,7 @@ class DataCollatorForWav2Vec2Pretraining:
             padding=self.padding,
             pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors="pt",
-            truncation= True, ## Added Pierre, 03/06/2024
+            truncation= True,
             max_length= int(20* self.feature_extractor.sampling_rate),
         )
         return batch
@@ -70,10 +71,38 @@ class DataCollatorForWav2Vec2Pretraining_withPreprocesing:
     padding: Union[bool, str] = "longest"
     pad_to_multiple_of: Optional[int] = None
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # No safe-checking on the sampling rate, make sure it is 16000 before...
+        # Support both pre-decoded audio rows from Hugging Face datasets and
+        # legacy rows exposing raw waveforms under ``input_values``.
+        if len(features) == 0:
+            raise ValueError("Cannot collate an empty batch.")
+
+        if "audio" in features[0]:
+            all_sr = [f["audio"]["sampling_rate"] for f in features]
+            sr = np.unique(all_sr)
+            if len(sr) != 1:
+                resamplers = {
+                    int(s): julius.ResampleFrac(
+                        old_sr=int(s),
+                        new_sr=self.feature_extractor.sampling_rate,
+                    )
+                    for s in sr
+                }
+                raw_speech = [
+                    resamplers[int(f["audio"]["sampling_rate"])](
+                        torch.as_tensor(f["audio"]["array"])
+                    ).cpu().numpy()
+                    for f in features
+                ]
+                sampling_rate = self.feature_extractor.sampling_rate
+            else:
+                sampling_rate = int(sr[0])
+                raw_speech = [f["audio"]["array"] for f in features]
+        else:
+            raw_speech = [f["input_values"] for f in features]
+            sampling_rate = self.feature_extractor.sampling_rate
 
         batch = self.feature_extractor(
-            raw_speech = [f["input_values"] for f in features],
+            raw_speech = raw_speech,
             padding=self.padding,
             pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors="pt",
@@ -84,7 +113,7 @@ class DataCollatorForWav2Vec2Pretraining_withPreprocesing:
             # min_length = int(2*self.feature_extractor.sampling_rate),
 
             # return_attention_mask=True,
-            sampling_rate = 16000
+            sampling_rate = sampling_rate
         )
 
         return batch
@@ -110,7 +139,8 @@ class DataCollatorForWav2Vec2Pretraining_resampling:
     padding: Union[bool, str] = "longest"
     pad_to_multiple_of: Optional[int] = None
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # No safe-checking on the sampling rate, make sure it is 16000 before...
+        # No safe-checking on the sampling rate; make sure the feature extractor
+        # configuration matches the desired target rate.
 
         all_sr = [f["audio"]["sampling_rate"] for f in features]
         sr = np.unique(all_sr)
@@ -152,4 +182,3 @@ def get_collator_withPreprocessing_resampling(file_configPreprocessor,config):
 #     y_downsampled[..., -1] = (y_downsampled[..., -1] * size_window + last_window) / (to_remove + size_window)
 
 #     return y_downsampled
-

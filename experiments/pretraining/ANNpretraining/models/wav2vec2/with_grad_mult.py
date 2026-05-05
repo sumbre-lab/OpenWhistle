@@ -20,7 +20,10 @@
 from transformers import Wav2Vec2PreTrainedModel,Wav2Vec2Config
 from transformers.models.wav2vec2.modeling_wav2vec2 import Wav2Vec2ForPreTrainingOutput, _compute_mask_indices, Wav2Vec2FeatureEncoder,Wav2Vec2FeatureProjection
 from transformers.models.wav2vec2.modeling_wav2vec2 import Wav2Vec2Adapter,Wav2Vec2GumbelVectorQuantizer
-from ANNpretraining.models.wav2vec2.efficientEncoder import pierreWav2Vec2Encoder,pierreWav2Vec2EncoderStableLayerNorm
+from ANNpretraining.models.wav2vec2.efficientEncoder import (
+    OptimizedWav2Vec2Encoder,
+    OptimizedWav2Vec2EncoderStableLayerNorm,
+)
 from transformers.modeling_outputs import Wav2Vec2BaseModelOutput
 import torch.nn as nn
 import torch
@@ -41,7 +44,7 @@ from typing import Optional, Tuple
 from transformers.modeling_outputs import  ModelOutput
 
 @dataclass
-class pierreWav2Vec2BaseModelOutput(ModelOutput):
+class OptimizedWav2Vec2BaseModelOutput(ModelOutput):
     last_hidden_state: torch.FloatTensor = None
     extract_features: torch.FloatTensor = None
     pen_features: torch.FloatTensor = None
@@ -50,7 +53,7 @@ class pierreWav2Vec2BaseModelOutput(ModelOutput):
 
 
 @dataclass
-class pierreWav2Vec2ForPreTrainingOutput(ModelOutput):
+class OptimizedWav2Vec2ForPreTrainingOutput(ModelOutput):
     loss: Optional[torch.FloatTensor] = None
     projected_states: torch.FloatTensor = None
     projected_quantized_states: torch.FloatTensor = None
@@ -83,7 +86,7 @@ class GradMultiply(torch.autograd.Function):
 
 
 
-class pierreWav2Vec2Model(Wav2Vec2PreTrainedModel):
+class OptimizedWav2Vec2Model(Wav2Vec2PreTrainedModel):
     def __init__(self, config: Wav2Vec2Config):
         super().__init__(config)
         self.config = config
@@ -95,9 +98,9 @@ class pierreWav2Vec2Model(Wav2Vec2PreTrainedModel):
             self.masked_spec_embed = nn.Parameter(torch.FloatTensor(config.hidden_size).uniform_())
 
         if config.do_stable_layer_norm:
-            self.encoder = pierreWav2Vec2EncoderStableLayerNorm(config)
+            self.encoder = OptimizedWav2Vec2EncoderStableLayerNorm(config)
         else:
-            self.encoder = pierreWav2Vec2Encoder(config)
+            self.encoder = OptimizedWav2Vec2Encoder(config)
 
         self.adapter = Wav2Vec2Adapter(config) if config.add_adapter else None
 
@@ -178,7 +181,7 @@ class pierreWav2Vec2Model(Wav2Vec2PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         latent_attention_mask: Optional[torch.Tensor] = None,
-    ) -> Union[Tuple, pierreWav2Vec2BaseModelOutput]:
+    ) -> Union[Tuple, OptimizedWav2Vec2BaseModelOutput]:
 
         if attention_mask is not None and latent_attention_mask is not None:
             raise Exception("should not feed both attention and latent_attention_mask")
@@ -198,8 +201,7 @@ class pierreWav2Vec2Model(Wav2Vec2PreTrainedModel):
 
         extract_features = self.feature_extractor(input_values)
 
-        ## Added 13/11/2022 Pierre
-        # we use a grad_multiplier of 0.1 for the encoder
+        # Scale the encoder gradients by 0.1.
         extract_features = GradMultiply.apply(extract_features, 0.1)
 
         # we use a factor of 10 for the feature penalization
@@ -247,7 +249,7 @@ class pierreWav2Vec2Model(Wav2Vec2PreTrainedModel):
         if not return_dict:
             return (hidden_states, extract_features, features_pen) + encoder_outputs[1:]
 
-        return pierreWav2Vec2BaseModelOutput(
+        return OptimizedWav2Vec2BaseModelOutput(
             last_hidden_state=hidden_states,
             extract_features=extract_features,
             pen_features = features_pen,
@@ -256,10 +258,10 @@ class pierreWav2Vec2Model(Wav2Vec2PreTrainedModel):
         )
 
 
-class pierreWav2Vec2ForPreTraining(Wav2Vec2PreTrainedModel):
+class OptimizedWav2Vec2ForPreTraining(Wav2Vec2PreTrainedModel):
     def __init__(self, config: Wav2Vec2Config):
         super().__init__(config)
-        self.wav2vec2 = pierreWav2Vec2Model(config)
+        self.wav2vec2 = OptimizedWav2Vec2Model(config)
         self.dropout_features = nn.Dropout(config.feat_quantizer_dropout)
 
         self.quantizer = Wav2Vec2GumbelVectorQuantizer(config)
@@ -330,7 +332,7 @@ class pierreWav2Vec2ForPreTraining(Wav2Vec2PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         latent_attention_mask: Optional[torch.BoolTensor] = None,
-    ) -> Union[Tuple, pierreWav2Vec2ForPreTrainingOutput]:
+    ) -> Union[Tuple, OptimizedWav2Vec2ForPreTrainingOutput]:
         r"""
         mask_time_indices (`torch.BoolTensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices to mask extracted features for contrastive loss. When in training mode, model learns to predict
@@ -425,7 +427,7 @@ class pierreWav2Vec2ForPreTraining(Wav2Vec2PreTrainedModel):
                 return (loss, transformer_features, quantized_features, codevector_perplexity) + outputs[2:]
             return (transformer_features, quantized_features, codevector_perplexity) + outputs[2:]
 
-        return pierreWav2Vec2ForPreTrainingOutput(
+        return OptimizedWav2Vec2ForPreTrainingOutput(
             loss=loss,
             projected_states=transformer_features,
             projected_quantized_states=quantized_features,
@@ -437,4 +439,3 @@ class pierreWav2Vec2ForPreTraining(Wav2Vec2PreTrainedModel):
             pen_loss = features_pen,
             pen_loss_nosum = features_pen/mask_time_indices.sum()
         )
-

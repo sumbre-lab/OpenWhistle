@@ -5,7 +5,7 @@ import torch
 from transformers import Wav2Vec2Config, Wav2Vec2ForPreTraining,Wav2Vec2Processor,Wav2Vec2FeatureExtractor
 from transformers.models.wav2vec2.modeling_wav2vec2 import Wav2Vec2ForPreTrainingOutput, _compute_mask_indices, _sample_negative_indices
 import torch.nn as nn
-from ANNpretraining.models.wav2vec2.with_grad_mult import pierreWav2Vec2ForPreTraining
+from ANNpretraining.models.wav2vec2.with_grad_mult import OptimizedWav2Vec2ForPreTraining
 from ANNpretraining.models.api import forPretraining
 
 from ANNpretraining.models.wav2vec2.utils_data import get_collator_Pretraining,get_collator_withPreprocessing
@@ -15,7 +15,7 @@ from typing import Union
 from pathlib import  Path
 import os
 
-class _Wav2vec2ForPretraining_saveload(pierreWav2Vec2ForPreTraining,forPretraining):
+class _Wav2vec2ForPretraining_saveload(OptimizedWav2Vec2ForPreTraining,forPretraining):
     def save_loss(self, outputs: dict,csv_path:Union[str,Path]): 
         df = pd.DataFrame({k:outputs[k].detach().cpu().numpy().reshape(-1) for k in ["loss", "contrastive_loss", "diversity_loss", "pen_loss"]})
         df.to_csv(csv_path,header=not os.path.exists(csv_path),mode="a")

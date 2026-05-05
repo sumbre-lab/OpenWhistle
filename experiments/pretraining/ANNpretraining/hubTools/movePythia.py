@@ -5,6 +5,7 @@ from huggingface_hub import HfApi
 import numpy as np
 import tqdm
 from pathlib import Path
+from ANNpretraining.runtime import artifact_dir
 
 
 def get_hf_repo_branches(repo_id):
@@ -23,8 +24,7 @@ orderb_names = np.argsort([int(b.replace("step",""))
                            for b in b_names])
 b_names = np.array(b_names)[orderb_names]
 
-cache_dir = Path("/lustre/fsn1/projects/rech/fqt/uzz43va/NeuroData/pretrainedModels/pythia")
-# cache_dir = Path("/media/pierre/NeuroData2/models/pythia")
+cache_dir = artifact_dir("models", "pythia", create=True)
 
 for step in tqdm.tqdm(b_names[:1]):
     dir_step = cache_dir / ("pythia-" + number_param + "-deduped") / step

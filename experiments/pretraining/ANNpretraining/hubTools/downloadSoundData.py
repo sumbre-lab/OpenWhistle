@@ -1,47 +1,50 @@
+import argparse
+
 import datasets
-import huggingface_hub
-from huggingface_hub import HfApi
-import os
-from ANNpretraining.hubTools.token_hub import TOKEN,nameaccount
 
-huggingface_hub.login(token=TOKEN)
-api = HfApi()
+from ANNpretraining.hubTools.token_hub import login_to_hub
+from ANNpretraining.runtime import artifact_dir, ensure_dir
 
 
-# repo_id =  "dolphinteam"+"/DolphinTalk" #"porhan/dataset-librispeech960h"
-# output_dir = "/lustre/fsn1/projects/rech/dab/uzz43va/datasets"
-# os.makedirs(os.path.join(output_dir,"DolphinTalk"),exist_ok=True)
-# ds = datasets.load_dataset(path=repo_id,
-#                       cache_dir=os.path.join(output_dir,"DolphinTalk_row"))
-# ### You need to change the following line:
-# path_to_disk = "/lustre/fsn1/projects/rech/fqt/uzz43va/DolphinTalk_save"
-# ds.save_to_disk(path_to_disk)
+def parse_args():
+    parser = argparse.ArgumentParser(description="Download a Hugging Face audio dataset and save it locally.")
+    parser.add_argument("--repo_id", required=True, help="Hugging Face dataset id to download.")
+    parser.add_argument(
+        "--cache_dir",
+        default=str(artifact_dir("datasets", "hf_cache")),
+        help="Directory used by the datasets cache.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        default=str(artifact_dir("datasets", "saved_dataset")),
+        help="Target directory for datasets.save_to_disk(...).",
+    )
+    parser.add_argument("--config", default="", help="Optional dataset config name.")
+    parser.add_argument("--num_proc", type=int, default=1, help="Number of dataset workers.")
+    return parser.parse_args()
 
-repo_id =  "porhan"+"/dataset-mergeFmaLibrispeechAudiosetfilter" #"porhan/dataset-librispeech960h"
-output_dir = "/lustre/fsn1/projects/rech/dab/uzz43va/datasets"
-os.makedirs(os.path.join(output_dir,"mergefilter"),exist_ok=True)
-ds = datasets.load_dataset(path=repo_id,
-                      cache_dir=os.path.join(output_dir,"mergefitler_row"),
-                           num_proc=10)
-### You need to change the following line:
-path_to_disk = "/lustre/fsn1/projects/rech/dab/uzz43va/mergefitler_save"
-ds.save_to_disk(path_to_disk)
 
-# os.makedirs(os.path.join(output_dir,"DolphinTalk"),exist_ok=True)
-# ds = datasets.load_dataset(path=repo_id,
-#                       cache_dir=os.path.join(output_dir,"DolphinTalk_row"))
-# ### You need to change the following line:
-# path_to_disk = "/lustre/fsn1/projects/rech/fqt/uzz43va/DolphinTalk_save"
-# ds.save_to_disk(path_to_disk)
+def main():
+    args = parse_args()
+    login_to_hub()
+    cache_dir = ensure_dir(args.cache_dir)
+    output_dir = ensure_dir(args.output_dir)
 
-# repo_id =  nameaccount+"/dataset-fmalarge"
-# repo_id = NDEM/dataset-librispeech960h"
+    if args.config:
+        dataset = datasets.load_dataset(
+            args.repo_id,
+            args.config,
+            cache_dir=str(cache_dir),
+            num_proc=args.num_proc,
+        )
+    else:
+        dataset = datasets.load_dataset(
+            args.repo_id,
+            cache_dir=str(cache_dir),
+            num_proc=args.num_proc,
+        )
+    dataset.save_to_disk(str(output_dir))
 
-# repo_id =  nameaccount+"/dataset-audiosetfilter"
-# output_dir = "/lustre/fsn1/projects/rech/fqt/uzz43va/datasets"
-# os.makedirs(os.path.join(output_dir,"audiosetfilter"),exist_ok=True)
-# ds = datasets.load_dataset(path=repo_id,
-#                       cache_dir=os.path.join(output_dir,"audiosetfilter_row"))
-# ### You need to change the following line:
-# path_to_disk = "/lustre/fsn1/projects/rech/fqt/uzz43va/datasets/audiosetfilter_save"
-# ds.save_to_disk(path_to_disk)
+
+if __name__ == "__main__":
+    main()

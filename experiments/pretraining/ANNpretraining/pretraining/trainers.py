@@ -4,7 +4,7 @@ import os
 from torch.nn.parallel import DistributedDataParallel
 from ANNpretraining.models.api import forPretraining
 
-class pierreTrainer(Trainer):
+class PretrainingTrainer(Trainer):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -52,4 +52,3 @@ class pierreTrainer(Trainer):
                 except:
                     model.save_loss(outputs,self.path_csv)
         return (loss, outputs) if return_outputs else loss
-

@@ -5,17 +5,24 @@ import shutil
 import sys
 from ANNpretraining.models import IMPLEMENTED_MODELS
 from ANNpretraining.models.wav2vec2.forPreTraining import Wav2vec2ForPreTraining_randommask,Wav2Vec2Config
+from ANNpretraining.runtime import artifact_dir, ensure_dir, submitit_parameters
 import argparse
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Launch the training loop')
     # the following should change
     parser.add_argument('--path_data', type=str,
-                        default=os.path.join("..", "data", "librispeech_example"),
-                        help='path to the data')
+                        default="OpenWhistleNeurIPS26/OpenWhistle-Pretraining",
+                        help='local dataset path or Hugging Face dataset id')
+    parser.add_argument('--path_data_config', type=str,
+                        default="default",
+                        help='Hugging Face dataset config name, ignored for local datasets')
     parser.add_argument('--output_dir', type=str,
-                        default=os.path.join("outputs_librispeech_correctLR_gradmulextractor_featurepen2"),
+                        default="",
                         help='path where the model is output')
+    parser.add_argument('--log_dir', type=str,
+                        default="",
+                        help='directory used by submitit for job logs')
     parser.add_argument('--preprocess', type=bool,
                         default=False,
                         help='sets to true if the dataset is not'
@@ -37,32 +44,38 @@ def get_parser():
                         help='path to the training argument for huggingface')
     parser.add_argument('--nb_gpu',type=int,default=8,help="nb gpu per node")
     parser.add_argument('--nb_nodes',type=int,default=8,help="nb nodes")
+    parser.add_argument('--cpus_per_task', type=int, default=10, help='number of CPU cores per task')
+    parser.add_argument('--timeout_min', type=int, default=10 * 60, help='job timeout in minutes')
+    parser.add_argument('--slurm_partition', type=str, default=os.environ.get("OPENWHISTLE_SLURM_PARTITION", ""),
+                        help='optional SLURM partition')
+    parser.add_argument('--slurm_account', type=str, default=os.environ.get("OPENWHISTLE_SLURM_ACCOUNT", ""),
+                        help='optional SLURM account')
     return parser
 
 def main(args):
     parser = get_parser()
     args_class = parser.parse_args(args)
 
-    args_class.path_preprocessor = Path(__file__).parent.parent/"ANNpretraining/models/wav2vec2/config/preprocessor_dolphin.json"
-    args_class.path_model = Path(__file__).parent.parent/"ANNpretraining/ANNpretraining/models/wav2vec2/config/config_dolphin.json"
-    args_class.path_train_arg = Path(__file__).parent.parent/"ANNpretraining/ANNpretraining/models/wav2vec2/config/trainingArg.yaml"
+    package_root = Path(__file__).resolve().parents[1]
+    args_class.path_preprocessor = package_root / "models" / "wav2vec2" / "config" / "preprocessor_dolphin.json"
+    args_class.path_model = package_root / "models" / "wav2vec2" / "config" / "config_dolphin.json"
+    args_class.path_train_arg = package_root / "models" / "wav2vec2" / "config" / "trainingArg.yaml"
 
-    PATH_TO_OUTPUT = "/lustre/fsn1/projects/rech/fqt/uzz43va/pretraining"
-    args_class.output_dir = os.path.join(PATH_TO_OUTPUT,"outputs_DolphinTalk_base_0")
+    if not args_class.output_dir:
+        args_class.output_dir = str(artifact_dir("outputs", "pretraining_run"))
+    if not args_class.log_dir:
+        args_class.log_dir = str(artifact_dir("logs", "pretraining_submitit"))
 
     args_class.modelType = "wav2vec2"
-    PATH_TO_DATASET = "/lustre/fsn1/projects/rech/fqt/uzz43va/datasets"
-    args_class.path_data = os.path.join(PATH_TO_DATASET,"DolphinTalk","DolphinTalk_save")
 
     try:
         assert args_class.modelType in IMPLEMENTED_MODELS.keys()
     except:
         raise Exception("Model not recognized, implemented models are "+str(list(IMPLEMENTED_MODELS.keys())))
-    if not os.path.exists(args_class.output_dir):
-        os.makedirs(args_class.output_dir)
+    ensure_dir(args_class.output_dir)
 
     ## We need to initialize the model before the code is spread across the different nodes:
-    if args_class.path_model.endswith(".json"):
+    if str(args_class.path_model).endswith(".json"):
         config = IMPLEMENTED_MODELS[args_class.modelType].load_config(args_class.path_model)
         model = IMPLEMENTED_MODELS[args_class.modelType](config)
         dir_init = os.path.join(args_class.output_dir,"initialmodel")
@@ -70,20 +83,21 @@ def main(args):
             model.save_pretrained(dir_init)
         args_class.path_model = dir_init
 
-    PATH_TO_LOG = "/lustre/fsn1/projects/rech/fqt/uzz43va/pretraining/logs/log_dolphintraining"
-    os.makedirs(PATH_TO_LOG,exist_ok=True)
-    executor = submitit.AutoExecutor(folder=PATH_TO_LOG,slurm_max_num_timeout=20)
+    log_dir = ensure_dir(args_class.log_dir)
+    executor = submitit.AutoExecutor(folder=str(log_dir),slurm_max_num_timeout=20)
 
     NUM_TASKS_PER_NODE = args_class.nb_gpu
     NUM_NODES = args_class.nb_nodes
-    executor.update_parameters(slurm_partition="gpu_p13", #gpu_p2
-                               gpus_per_node=NUM_TASKS_PER_NODE,
-                               nodes=NUM_NODES,
-                               cpus_per_task=10,
-                               tasks_per_node=NUM_TASKS_PER_NODE,
-                               timeout_min= 10*60,#10*60,
-                               slurm_gres="gpu:"+str(NUM_TASKS_PER_NODE),
-                               account="vzf@v100")
+    executor.update_parameters(**submitit_parameters(
+        slurm_partition=args_class.slurm_partition,
+        gpus_per_node=NUM_TASKS_PER_NODE,
+        nodes=NUM_NODES,
+        cpus_per_task=args_class.cpus_per_task,
+        tasks_per_node=NUM_TASKS_PER_NODE,
+        timeout_min=args_class.timeout_min,
+        slurm_gres="gpu:"+str(NUM_TASKS_PER_NODE),
+        account=args_class.slurm_account,
+    ))
 
     class Task:
         def __call__(self):
@@ -100,7 +114,8 @@ def main(args):
             train(args_class.modelType, args_class.path_model, args_class.output_dir,
                   args_class.path_preprocessor, args_class.path_train_arg,
                   args_class.preprocess,
-                  args_class.path_data)
+                  args_class.path_data,
+                  args_class.path_data_config)
         def checkpoint(self):
             print("checkpointing")
             return submitit.helpers.DelayedSubmission(self)

@@ -12,21 +12,22 @@ import argparse
 
 ## Download from huggingface the model of interest
 from tools import _download
-from ANNpretraining.hubTools.token_hub import TOKEN,nameaccount
+from ANNpretraining.hubTools.token_hub import login_to_hub, require_hf_repo_owner
+from ANNpretraining.runtime import artifact_dir, submitit_parameters
 
 
 from pathlib import  Path
 
-# dir_output = "/media/pierre/NeuroData2/models/"
-dir_output = "/gpfsscratch/rech/fqt/uzz43va/NeuroData/pretrainedModels/wav2vec2_onlylast"
+dir_output = str(artifact_dir("models", "wav2vec2_onlylast", create=True))
 
 def download_model(analyses,model_name,model_type,name_data,version,output_dir):
 
     path_output = os.path.join(dir_output,model_name,output_dir)
 
-    huggingface_hub.login(token=TOKEN)
+    login_to_hub()
 
-    repo_id = nameaccount + "/model-" + model_name + "_type-" + \
+    repo_owner = require_hf_repo_owner()
+    repo_id = repo_owner + "/model-" + model_name + "_type-" + \
               model_type + "_data-" + name_data + "_version-" + version
 
     _download(repo_id,path_output,fileFilter=analyses,repo_type="model")
@@ -64,12 +65,14 @@ def main(args):
     else:
         # executor = submitit.AutoExecutor(folder="log_download")
         executor = submitit.AutoExecutor(folder="log_download")
-        executor.update_parameters(slurm_partition="prepost",
-                                   nodes=1,
-                                   cpus_per_task=20,
-                                   tasks_per_node=1,
-                                   timeout_min=360,
-                                   account="fqt@cpu")
+        executor.update_parameters(**submitit_parameters(
+            slurm_partition=os.environ.get("OPENWHISTLE_SLURM_PARTITION"),
+            nodes=1,
+            cpus_per_task=20,
+            tasks_per_node=1,
+            timeout_min=360,
+            account=os.environ.get("OPENWHISTLE_SLURM_ACCOUNT"),
+        ))
         class Task:
             def __call__(self, model_name, model_type, name_data, version, output_dir):
                 done = download_model(fileFilter,model_name, model_type, name_data, version, output_dir)

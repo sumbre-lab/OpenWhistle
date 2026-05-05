@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch
 import numpy as np
 
-class pierreWav2Vec2EncoderStableLayerNorm(nn.Module):
+class OptimizedWav2Vec2EncoderStableLayerNorm(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -41,10 +41,8 @@ class pierreWav2Vec2EncoderStableLayerNorm(nn.Module):
             # hidden_states[~expand_attention_mask] = 0
             ## --> We remove that operation to increase in efficiency
 
-            # Pierre, 17/07/2023
-            # The problem of removing this setting to 0 is that the future hidden_states values
-            # can be used by the relative convolutional encoder!!!
-            # the next line perform that operation more efficiently:
+            # We still zero padded positions before the convolutional positional
+            # encoder so that padding cannot leak into future hidden states.
             hidden_states = attention_mask[...,None]*hidden_states
             attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
             attention_mask = attention_mask * torch.finfo(hidden_states.dtype).min
@@ -52,8 +50,7 @@ class pierreWav2Vec2EncoderStableLayerNorm(nn.Module):
                 attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
             )
 
-            # Pierre 15/08/2023: to delete, we debug to see if the network results were relying on the partial
-            # acausality of the masking:
+            # Debug fallback kept here for reference while validating masking behavior:
             # hidden_states = attention_mask[...,-1,:,None] * hidden_states
             # attention_mask = 1.0 - attention_mask[:, None, ...].to(dtype=hidden_states.dtype)
             # attention_mask = attention_mask * torch.finfo(hidden_states.dtype).min
@@ -116,7 +113,7 @@ class pierreWav2Vec2EncoderStableLayerNorm(nn.Module):
 
 
 
-class pierreWav2Vec2Encoder(nn.Module):
+class OptimizedWav2Vec2Encoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -142,9 +139,8 @@ class pierreWav2Vec2Encoder(nn.Module):
             # expand_attention_mask = attention_mask.unsqueeze(-1).repeat(1, 1, hidden_states.shape[2])
             # hidden_states[~expand_attention_mask] = 0
 
-            # Pierre, 04/08/2023
-            # The problem of removing this setting to 0 is that the future hidden_states values
-            # can be used by the relative convolutional encoder!!!
+            # We still zero padded positions before the convolutional positional
+            # encoder so that padding cannot leak into future hidden states.
             hidden_states = attention_mask[...,None]*hidden_states
 
             # extend attention_mask

@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import os
 import submitit
+from ANNpretraining.runtime import artifact_dir, submitit_parameters
 
 def get_hf_repo_branches(repo_id):
     api = HfApi()
@@ -28,9 +29,7 @@ for number_param in number_params:
     b_names = np.array(b_names)[orderb_names]
     local = False
 
-    cache_dir = Path("/lustre/fsn1/projects/rech/fqt/uzz43va/NeuroData/pretrainedModels/pythia")
-    os.makedirs(cache_dir,exist_ok=True)
-    # cache_dir = Path("/media/pierre/NeuroData2/models/pythia")
+    cache_dir = artifact_dir("models", "pythia", create=True)
 
     os.makedirs(cache_dir/("pythia-"+number_param+"-deduped"),exist_ok=True)
 
@@ -62,18 +61,14 @@ for number_param in number_params:
                 download_step(step)
     else:
         executor = submitit.AutoExecutor(folder="log_download")
-        executor.update_parameters(slurm_partition="compil",
-                                   nodes=1,
-                                   cpus_per_task=20,
-                                   tasks_per_node=1,
-                                   timeout_min=30,
-                                   account="dab@cpu")
-        # executor.update_parameters(slurm_partition="cpu_p1",
-        #                            nodes=1,
-        #                            cpus_per_task=20,
-        #                            tasks_per_node=1,
-        #                            timeout_min=20,  # 200
-        #                            account="dab@cpu")  #
+        executor.update_parameters(**submitit_parameters(
+            slurm_partition=os.environ.get("OPENWHISTLE_SLURM_PARTITION"),
+            nodes=1,
+            cpus_per_task=20,
+            tasks_per_node=1,
+            timeout_min=30,
+            account=os.environ.get("OPENWHISTLE_SLURM_ACCOUNT"),
+        ))
         class Task:
             def __call__(self, step):
                 download_step(step)
