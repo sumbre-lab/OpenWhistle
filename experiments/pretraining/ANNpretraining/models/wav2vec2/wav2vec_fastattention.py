@@ -1,16 +1,13 @@
-from transformers.models.wav2vec2.modeling_wav2vec2 import Wav2Vec2FeedForward
-from typing import Optional ,Tuple
+from typing import Optional
+
 import torch.nn as nn
 import torch
 import xformers.ops as xops
-from xformers.components.attention.core import scaled_dot_product_attention
+from transformers.models.wav2vec2.modeling_wav2vec2 import Wav2Vec2FeedForward
 
 
-# Copied from transformers.models.bart.modeling_bart.BartAttention with Bart->Wav2Vec2
 class Wav2Vec_FastAttention(nn.Module):
-    """Multi-headed attention from 'Attention Is All You Need' paper
-    Efficient implementation using xformers
-    """
+    """Multi-headed Wav2Vec2 attention using xFormers."""
 
     def __init__(
         self,
@@ -57,19 +54,10 @@ class Wav2Vec_FastAttention(nn.Module):
         k = self.k_proj(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
         v = self.v_proj(hidden_states).view(bsz, tgt_len, self.num_heads, self.head_dim)
 
-        # inputs must be [B,M,H,K]
         attn_output = xops.memory_efficient_attention(
             q, k, v,
-            # attn_bias=attention_mask[:,:,:q.shape[1],:q.shape[1]],#attention_mask
-            # p = self.dropout,
             scale = self.scaling,
-            ) #op = xops.MemoryEfficientAttentionTritonFwdFlashBwOp
-        ## Note that this is slower than using a non-materialized mask of xformers,
-        # but allows us to use our custom bias and apply backpropagate the loss.
-        # Key: the attention_mask stride need to be multiple of 8
-        # in order to do that we cut the mask at the last minute, making
-        # sure no strange stuff are allocated in between !
-        # this did not resolve some memory leakage :(
+            )
 
         attn_output = attn_output.view(bsz, tgt_len, self.embed_dim)
         attn_output = self.out_proj(attn_output)
@@ -142,8 +130,5 @@ class Wav2Vec2_FastEncoderLayer(nn.Module):
         hidden_states = self.final_layer_norm(hidden_states)
 
         outputs = (hidden_states,)
-
-        # if output_attentions:
-        #     outputs += (attn_weights,)
 
         return outputs

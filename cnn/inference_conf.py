@@ -80,13 +80,6 @@ EXTERNAL_DATASETS = {
         recursive=False,
         description='DCLDE prepared clip folder or raw audio folder.',
     ),
-    'korkmaz': ExternalDatasetSpec(
-        name='korkmaz',
-        env_vars=('OPENWHISTLE_CNN_KORKMAZ_DIR', 'KORKMAZ_DIR'),
-        default_root=None,
-        recursive=True,
-        description='Local Korkmaz et al. 2023 audio folder downloaded from Google Drive.',
-    ),
 }
 
 

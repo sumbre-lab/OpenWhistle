@@ -4,5 +4,5 @@
   "padding_side": "right",
   "padding_value": 0.0,
   "return_attention_mask": false,
-  "sampling_rate": 16000
+  "sampling_rate": 44100
 }
