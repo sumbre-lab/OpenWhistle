@@ -1,16 +1,13 @@
 from pathlib import Path
 import  os
 import submitit
-import shutil
 import sys
 from ANNpretraining.models import IMPLEMENTED_MODELS
-from ANNpretraining.models.wav2vec2.forPreTraining import Wav2vec2ForPreTraining_randommask,Wav2Vec2Config
 from ANNpretraining.runtime import artifact_dir, ensure_dir, submitit_parameters
 import argparse
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Launch the training loop')
-    # the following should change
     parser.add_argument('--path_data', type=str,
                         default="OpenWhistleNeurIPS26/OpenWhistle-Pretraining",
                         help='local dataset path or Hugging Face dataset id')
@@ -27,9 +24,8 @@ def get_parser():
                         default=False,
                         help='sets to true if the dataset is not'
                              ' preprocessed and comes as a matrix of sounds instead of a pyarrow datasets.'
-                             ' If False we will just padds the sequences when batching, masking will be done on the fly '
+                             ' If False we will just pad the sequences when batching, masking will be done on the fly '
                              'by the model forward pass ')
-    # will probably not change
     parser.add_argument('--modelType',type=str,
                         default="wav2vec2")
     parser.add_argument('--path_model', type=str,
@@ -74,7 +70,6 @@ def main(args):
         raise Exception("Model not recognized, implemented models are "+str(list(IMPLEMENTED_MODELS.keys())))
     ensure_dir(args_class.output_dir)
 
-    ## We need to initialize the model before the code is spread across the different nodes:
     if str(args_class.path_model).endswith(".json"):
         config = IMPLEMENTED_MODELS[args_class.modelType].load_config(args_class.path_model)
         model = IMPLEMENTED_MODELS[args_class.modelType](config)

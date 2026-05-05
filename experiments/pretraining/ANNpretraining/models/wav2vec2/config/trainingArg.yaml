@@ -1,37 +1,24 @@
 run_name: "bsTraining_locallog"
-#report_to: [""]
-
 output_dir: ""
-#overwrite_output_dir: False
 
-## args to use in script:
 do_train: True
 do_eval: False
 do_predict: False
 resume_from_checkpoint: True
 
-## schedules:
-#num_train_epochs:
-max_steps: 400000 #100000 #400000 #4000
+max_steps: 400000
 lr_scheduler_type: linear
-#warmup_ratio:
 warmup_steps: 32000
 ignore_data_skip: False
 
-# Inside train loop params:
 include_inputs_for_metrics: False
-
 evaluation_strategy: "steps"
 eval_steps: 100
 prediction_loss_only: False
 
-per_device_train_batch_size: 4 #4
-per_device_eval_batch_size: 4 #4
-# eval_accumulation_steps:
-# left unset is faster but more memory
-# eval_delay
+per_device_train_batch_size: 4
+per_device_eval_batch_size: 4
 
-## optimizer parameters
 optim: "adamw_torch"
 learning_rate: 0.0005
 weight_decay: 0.01
@@ -39,96 +26,40 @@ adam_beta1: 0.9
 adam_beta2: 0.98
 adam_epsilon: 0.000001
 
-# Gumbel parameters
 max_gumbel_temperature: 2.0
 min_gumbel_temperature: 0.5
-gumbel_temperature_decay: 0.999995 #"Decay of gumbel temperature during training."
+gumbel_temperature_decay: 0.999995
 
-## padding:
-#group_by_length:
-#length_column_name:
+gradient_accumulation_steps: 2
 
-## gradient:
-#max_grad_norm: 100 # set very high...
-gradient_accumulation_steps: 2  # to change
-
-##logs:
-#log_level:
-#log_level_replica:
 log_on_each_node: True
-#logging_dir:
 logging_strategy: "steps"
 logging_first_step: True
 logging_steps: 1
 logging_nan_inf_filter: False
-#debug: underflow_overflow
-#skip_memory_metrics:
 gradient_checkpointing: False
 
-## saving:
 save_strategy: "steps"
 save_steps: 100
-#save_total_limit:
 save_on_each_node: False
 
-## seed
-#seed:
-#data_seed:
 full_determinism: False
 
-## performance
 jit_mode_eval: False
 use_ipex: False
 bf16: False
 fp16: True
-#fp16_opt_level:
-#fp16_backend:
-#half_precision_backend:
-#bf16_full_eval:
 fp16_full_eval: False
-#tf32:
 auto_find_batch_size: False
-#torchdynamo:
-#use_mps_device:
 no_cuda: False
 
-## distributed training parameters
-#local_rank:
-#--> this has to be set inside the training loop using the local_rank environmental
-# variable that should be set by something else
-#xpu_bqckend:
-#tpu_num_cores:
 sharded_ddp: []
-#fsdp:  # for fully sharded data parallel which is not the basic ddp
-#fsdp_min_num_params:
-#deepspeed:
 ddp_find_unused_parameters: True
-#ddp_bucket_cap_mb:   # ?? to look for this in fairseq
 ddp_timeout: 1800
-# Note: for nccl bakcend one need to set the env variable NCCL_BLOCKING_WAIT or NCCL_ASYNC_ERROR_HANDLING to 1
 
-## Data
-dataloader_drop_last: True # if it can't be well dispatched across GPU this will create issues...
-#dataloader_num_workers: ???
-dataloader_pin_memory: True #if collator issue, maybe try to change that?
-
-
-#past_index:  # for specific model
+dataloader_drop_last: True
+dataloader_pin_memory: True
 disable_tqdm: False
-#remove_unused_columns: False
 
-## Training using labels
-#label_names:
 load_best_model_at_end: False
-#metric_for_best_model:
-#greater_is_better:
-#label_smoothing_factor:
-
-
 push_to_hub: False
-#hub_model_id:
-#hub_strategy:
-#hub_token
-#hub_private_repo
-
-

@@ -15,10 +15,10 @@ from ANNpretraining.models import IMPLEMENTED_MODELS
 def model_load(modelType:str,path_model:str):
     os.environ["WANDB_DISABLED"] = "true"
 
-    if str(path_model).endswith(".json"): # .json config
+    if str(path_model).endswith(".json"):
         config = IMPLEMENTED_MODELS[modelType].load_config(path_model)
         model = IMPLEMENTED_MODELS[modelType](config)
-    else: # directory with known model weights.
+    else:
         model = IMPLEMENTED_MODELS[modelType].from_pretrained(path_model)
         config = model.config
     return model,config
@@ -27,23 +27,21 @@ def model_load(modelType:str,path_model:str):
 def parseHf(path_train_arg,output_dir):
     hfArg = HfArgumentParser(TrainingArguments)
     hfArg_out = hfArg.parse_yaml_file(str(path_train_arg), True)[0]
-    # additional parameter for this training:
     HfArgumentParser.__setattr__(hfArg_out,"output_dir",str(output_dir))
-    # hfArg_out.path_target_model = path_target_model
 
     if "LOCAL_RANK" in os.environ.keys():
         local_rank = int(os.environ["LOCAL_RANK"])
         HfArgumentParser.__setattr__(hfArg_out, "local_rank", local_rank)
 
         torch.cuda.set_device(local_rank)
-        print("torch is initialied",torch.distributed.is_initialized())
+        print("torch is initialized",torch.distributed.is_initialized())
         if not torch.distributed.is_initialized():
             torch.distributed.init_process_group(backend="nccl",
                                                  init_method="env://")
 
             if not os.path.exists(hfArg_out.output_dir):
                 os.makedirs(hfArg_out.output_dir)
-        print("starting the Trainer of hugginface")
+        print("starting the Hugging Face Trainer")
     transformers.logging.set_verbosity_info()
     last_checkpoint = checkpoint_loading(hfArg_out)
 
@@ -112,15 +110,12 @@ def train(modelType : str, path_model : str, output_dir :str,
                                                     wasPreprocessedPyarrow=uses_preprocessed_pyarrow)
     hfArg_out,last_checkpoint = parseHf(path_train_arg,output_dir)
     if uses_audio_column:
-        # Keep the raw audio column available until the collator converts it to input_values.
         hfArg_out.remove_unused_columns = False
     if last_checkpoint != False:
         del model
-        # make sure the model is loaded from the checkpoint
         model = IMPLEMENTED_MODELS[modelType].from_pretrained(last_checkpoint)
         model.train()
 
-    ds_processed["train"] = ds_processed["train"]
     if "validation" in ds_processed.keys():
         eval_size = min(len(ds_processed["validation"]), hfArg_out.eval_batch_size)
         ds_processed["validation"] = ds_processed["validation"].select(range(eval_size))
@@ -129,8 +124,6 @@ def train(modelType : str, path_model : str, output_dir :str,
         ds_processed["validation"] = ds_processed["train"].select(range(eval_size))
 
     print(hfArg_out.eval_batch_size)
-    # Remove shuffling as it is done by the RandomSampler of the dataloader
-    # ds_processed = ds_processed.shuffle()
 
     print("starting the Trainer")
     trainer = PretrainingTrainer(model=model,
@@ -152,9 +145,7 @@ def train(modelType : str, path_model : str, output_dir :str,
     return None
 
 def _clean_store(output_dir):
-    # After the training is completed we remove the optimisers
-    # from the store to save memory space. (For Wav2vec2 Optimiser is two time the size of the initial model)
-    # If the gradient had been of interest we could re-run an optimisation on it.
+    """Remove optimizer state from checkpoints to reduce storage after training."""
     for chk in os.listdir(output_dir):
         if chk.__contains__("checkpoint-"):
             if os.path.exists(os.path.join(output_dir,chk,"optimizer.pt")):

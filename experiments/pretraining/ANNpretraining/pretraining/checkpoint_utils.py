@@ -2,8 +2,7 @@ import os
 import numpy as np
 
 def checkpoint_loading(hfArg_out):
-    ## Sometimes in a crash the trainer_state is not well saved, we make sure that it is and if it isn't we load
-    # from the previous checkpoint!
+    """Return the latest checkpoint with a valid Trainer state."""
     import re
     PREFIX_CHECKPOINT_DIR = "checkpoint"
     _re_checkpoint = re.compile(r"^" + PREFIX_CHECKPOINT_DIR + r"\-(\d+)$")
