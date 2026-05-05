@@ -86,9 +86,12 @@ def main() -> None:
     if not isinstance(ds, DatasetDict):
         ds = DatasetDict({"train": ds})
 
-    splits = [s for s in ("train", "test") if s in ds]
+    # Concatenate every split (train / validation / test / …), not only train+test.
+    _order = ("train", "validation", "test", "dev")
+    splits = [s for s in _order if s in ds]
+    splits.extend(sorted(s for s in ds.keys() if s not in splits))
     if not splits:
-        raise SystemExit(f"No train/test splits in dataset: {list(ds.keys())}")
+        raise SystemExit(f"No splits in dataset: {list(ds.keys())}")
 
     first = ds[splits[0]]
     if "label" not in first.features:
