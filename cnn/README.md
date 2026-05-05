@@ -76,8 +76,7 @@ python cnn/inference.py \
   --output-dir /path/to/predictions
 ```
 
-For nested external datasets such as WMMSD/WMSD, DCLDE, or raw Korkmaz et al.
-recordings, use recursive discovery:
+For nested external recording folders, use recursive discovery:
 
 ```bash
 python cnn/inference.py \
@@ -91,14 +90,6 @@ inference with those presets:
 
 ```bash
 python cnn/run_inference_dataset.py wmmsd dclde
-```
-
-For Korkmaz et al. 2023, download the Google Drive folder locally and point the
-preset to the audio folder:
-
-```bash
-OPENWHISTLE_CNN_KORKMAZ_DIR=/path/to/korkmaz_audio \
-python cnn/run_inference_dataset.py korkmaz
 ```
 
 By default, inference downloads and uses:
