@@ -16,6 +16,8 @@ This repository accompanies the **OpenWhistle** paper. It provides code to acces
 | **Detection benchmark** (expert-annotated windows for detection) | [OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning) | n/a |
 | **CNN training set** (audio windows, spectrograms, and binary whistle/noise labels) | [OpenWhistleNeurIPS26/OpenWhistle-CNN](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-CNN) | [review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-CNN/viewer/review-sample/train) |
 
+The OpenWhistle Hugging Face datasets are released under **CC-BY 4.0**.
+
 ## Repository layout
 
 ```text
@@ -26,6 +28,7 @@ This repository accompanies the **OpenWhistle** paper. It provides code to acces
 │   ├── benchmark/          # frozen-embedding + logistic-regression benchmark
 │   └── pretraining/        # self-supervised pretraining code
 ├── Annotation_Pipeline.png
+├── LICENSE-DATA            # CC-BY 4.0 terms for the OpenWhistle datasets
 └── README.md
 ```
 
