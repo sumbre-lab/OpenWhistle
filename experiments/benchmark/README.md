@@ -48,6 +48,21 @@ All models map each clip’s waveform to a **fixed vector**; only the linear pro
 | **`aves_core`** | **AVES** “core” checkpoint (44.1 kHz). |
 | **`aves_bio`** | **AVES** “bio” variant. |
 
+## Installation
+
+Use Python 3.12 and install the benchmark dependencies with pip:
+
+```bash
+cd experiments/benchmark
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+The requirements include the standard audio/ML stack plus `esp-aves`, which
+provides the `aves` feature extractor used by the AVES benchmark models. If you
+need a specific CUDA or CPU PyTorch wheel, install `torch` and `torchaudio` from
+the matching PyTorch index before installing the requirements.
+
 ## Run everything (all models × both tasks)
 
 From this directory:
@@ -69,10 +84,6 @@ python src/train_lr_splits.py --model dolph2vec --dataset_name detection --inver
 ```
 
 Useful flags (see `train_lr_splits.py`): `--seed`, `--num_seeds`, `--num_bootstrap`, `--no_normalize_data`, `--target_sample_rate`.
-
-### Dependencies
-
-The code expects **PyTorch**, **Hugging Face `datasets`**, **librosa**, **scikit-learn**, **tqdm**, and (for AVES) the **`aves`** feature extractor API referenced in `models.py`. Install what your environment is missing before running; exact pins are left to your stack (CUDA vs CPU, etc.).
 
 ## Outputs
 

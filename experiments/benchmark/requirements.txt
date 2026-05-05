@@ -1,17 +1,17 @@
 # Use Python 3.12. For machine-specific CUDA or CPU wheels, see:
 # https://pytorch.org/get-started/locally/
-torch
-torchvision
 datasets
+esp-aves
 huggingface_hub
-setuptools<81
 librosa==0.10.1
 matplotlib==3.7.5
 numpy<2.0.0,>=1.20.0
-opencv_python==4.8.1.78
+pandas
 Pillow
 scikit_learn==1.4.1.post1
 scipy>=1.13.1,<1.15
 soundfile
+torch
+torchaudio
 tqdm
-wandb
+transformers

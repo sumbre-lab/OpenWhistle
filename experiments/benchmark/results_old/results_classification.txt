@@ -1,0 +1,21 @@
+Model mfcc on dataset classification:
+Best C = 1.0 (validation Accuracy = 0.4044)
+Logistic Regression Test Accuracy: 0.4556 ± 0.0237
+Model spectrogram on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.5578)
+Logistic Regression Test Accuracy: 0.5556 ± 0.0235
+Model spectral_features on dataset classification:
+Best C = 1.0 (validation Accuracy = 0.2978)
+Logistic Regression Test Accuracy: 0.3489 ± 0.0224
+Model dolph2vec on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.8156)
+Logistic Regression Test Accuracy: 0.8111 ± 0.0183
+Model biolingual on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.7244)
+Logistic Regression Test Accuracy: 0.7133 ± 0.0211
+Model aves_bio on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.7333)
+Logistic Regression Test Accuracy: 0.7511 ± 0.0205
+Model aves_core on dataset classification:
+Best C = 0.1 (validation Accuracy = 0.6711)
+Logistic Regression Test Accuracy: 0.6800 ± 0.0221

@@ -592,7 +592,7 @@ def draw_snr_violin_on_ax(ax, sub, sns, mpatches, *, compact: bool = False) -> b
         ax.text(
             0.5,
             0.5,
-            "Run: conda run -n beans python scripts/classification/stats.py",
+            "SNR sidecar data unavailable",
             ha="center",
             va="center",
             transform=ax.transAxes,
