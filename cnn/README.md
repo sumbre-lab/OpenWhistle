@@ -7,6 +7,8 @@ whistle detection.
 
 - `train.py`: training entry point and run orchestration.
 - `inference.py`: command-line inference on WAV/FLAC recordings.
+- `create_sequences_whistles.py`: post-process inference CSVs into whistle
+  sequence intervals.
 - `utils/config.py`: training defaults, environment overrides, and CLI parsing.
 - `utils/data.py`: Hugging Face dataset loading, split checks, and Torch datasets.
 - `utils/metrics.py`: epoch loop and classification metrics.
@@ -90,6 +92,27 @@ inference with those presets:
 
 ```bash
 python cnn/run_inference_dataset.py wmmsd dclde
+```
+
+Create whistle sequences from an inference output directory. Local paths are
+detected automatically, so `--source local` is optional:
+
+```bash
+python cnn/create_sequences_whistles.py \
+  cnn/runs/inference \
+  --output-csv cnn/runs/inference/whistle_sequences.csv
+```
+
+Create whistle sequences from inference CSVs or a tabular Parquet split stored
+in a Hugging Face dataset repo. Use `--source hf` when the input is a Hugging
+Face repo id:
+
+```bash
+python cnn/create_sequences_whistles.py \
+  organization/private-inference-dataset \
+  --source hf \
+  --hf-split train \
+  --output-csv cnn/runs/sequences/hf_sequences.csv
 ```
 
 By default, inference downloads and uses:
