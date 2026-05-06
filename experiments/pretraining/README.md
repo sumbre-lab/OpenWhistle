@@ -52,7 +52,10 @@ Smoke test on the small review split:
 python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
   --path_data OpenWhistleNeurIPS26/OpenWhistle-Pretraining \
   --path_data_config review-sample \
-  --output_dir experiments/pretraining/artifacts/outputs/review_sample
+  --output_dir experiments/pretraining/artifacts/outputs/review_sample \
+  --nb_nodes 1 \
+  --nb_gpu 1 \
+  --timeout_min 60
 ```
 
 Full pretraining run:
