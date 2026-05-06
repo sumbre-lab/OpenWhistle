@@ -1,10 +1,25 @@
 from pathlib import Path
-import  os
-import submitit
+import os
 import sys
+
+PACKAGE_PARENT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_PARENT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_PARENT))
+
+existing_pythonpath = os.environ.get("PYTHONPATH")
+pythonpath_entries = existing_pythonpath.split(os.pathsep) if existing_pythonpath else []
+if str(PACKAGE_PARENT) not in pythonpath_entries:
+    os.environ["PYTHONPATH"] = os.pathsep.join(
+        [str(PACKAGE_PARENT), *pythonpath_entries]
+    )
+
+import submitit
 from ANNpretraining.models import IMPLEMENTED_MODELS
 from ANNpretraining.runtime import artifact_dir, ensure_dir, submitit_parameters
 import argparse
+
+DEFAULT_SLURM_PARTITION = os.environ.get("OPENWHISTLE_SLURM_PARTITION", "")
+DEFAULT_SLURM_ACCOUNT = os.environ.get("OPENWHISTLE_SLURM_ACCOUNT", "")
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Launch the training loop')
@@ -42,9 +57,9 @@ def get_parser():
     parser.add_argument('--nb_nodes',type=int,default=8,help="nb nodes")
     parser.add_argument('--cpus_per_task', type=int, default=10, help='number of CPU cores per task')
     parser.add_argument('--timeout_min', type=int, default=10 * 60, help='job timeout in minutes')
-    parser.add_argument('--slurm_partition', type=str, default=os.environ.get("OPENWHISTLE_SLURM_PARTITION", ""),
+    parser.add_argument('--slurm_partition', type=str, default=DEFAULT_SLURM_PARTITION,
                         help='optional SLURM partition')
-    parser.add_argument('--slurm_account', type=str, default=os.environ.get("OPENWHISTLE_SLURM_ACCOUNT", ""),
+    parser.add_argument('--slurm_account', type=str, default=DEFAULT_SLURM_ACCOUNT,
                         help='optional SLURM account')
     return parser
 
@@ -91,7 +106,7 @@ def main(args):
         tasks_per_node=NUM_TASKS_PER_NODE,
         timeout_min=args_class.timeout_min,
         slurm_gres="gpu:"+str(NUM_TASKS_PER_NODE),
-        account=args_class.slurm_account,
+        slurm_account=args_class.slurm_account,
     ))
 
     class Task:
