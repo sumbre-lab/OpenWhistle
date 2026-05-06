@@ -39,6 +39,8 @@ The OpenWhistle Hugging Face datasets are released under **CC-BY 4.0**.
 
 ## Running the benchmark
 
+**Install:** Python 3.12. From `experiments/benchmark/`, run `pip install -r requirements.txt`. If you need a specific CUDA (or CPU) PyTorch build, install `torch` and `torchaudio` from the [PyTorch install page](https://pytorch.org/get-started/locally/) first, then install the requirements file.
+
 The benchmark trains **logistic-regression heads on frozen embeddings** for every combination of **model family**, **inverse regularization** \(× cross-validation\), and **task** (classification vs. detection). Models included in the sweep:
 
 `mfcc`, `spectrogram`, `spectral_features`, `dolph2vec`, `biolingual`, `aves_bio`, `aves_core`
