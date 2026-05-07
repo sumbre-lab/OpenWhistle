@@ -94,6 +94,27 @@ inference with those presets:
 python cnn/run_inference_dataset.py wmmsd dclde
 ```
 
+If those external folders are missing, prepare the Python environment and wire
+the expected `DolphinWhistleExtractor/benchmark_data` folders automatically:
+
+```bash
+python cnn/setup_external_inference.py
+source .venv/bin/activate
+source cnn/.external_inference.env
+python cnn/run_inference_dataset.py wmmsd dclde
+```
+
+For a quick smoke test with a local checkpoint:
+
+```bash
+python cnn/setup_external_inference.py \
+  --skip-deps \
+  --run \
+  --limit 1 \
+  --cpu-only \
+  --checkpoint-path ~/Documents/DolphinWhistleExtractor/models/run_vgg_final/model_vgg_final_best.pt
+```
+
 Create whistle sequences from an inference output directory. Local paths are
 detected automatically, so `--source local` is optional:
 
