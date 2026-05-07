@@ -37,6 +37,7 @@ env/
 .env/
 .env.*
 !.env.example
+cnn/.external_inference.env
 
 # --- Test / type / lint caches ---
 .pytest_cache/
