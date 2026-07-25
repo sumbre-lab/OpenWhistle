@@ -92,6 +92,7 @@ Thumbs.db
 .pydevproject
 .settings/
 *.code-workspace
+.vscode/
 
 # --- Generated figures (OpenWhistle/figures) ---
 figures/output/

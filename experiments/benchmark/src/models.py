@@ -82,14 +82,14 @@ class BioLingual:
         waveform = waveform.squeeze().numpy()
 
         processed = self.processor(
-            audio=waveform, return_tensors="pt", sampling_rate=48000
+            audios=waveform, return_tensors="pt", sampling_rate=48000
         )
         inputs = processed["input_features"].to(self.device)
 
         with torch.no_grad():
             outputs = self.model.get_audio_features(input_features=inputs)
 
-        return outputs.pooler_output.squeeze(0)
+        return outputs.squeeze(0)
 
 
 class Aves:
