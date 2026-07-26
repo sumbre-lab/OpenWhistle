@@ -12,15 +12,17 @@ mkdir -p "${ROOT}/results/pr_curves"
 
 models=(mfcc spectrogram spectral_features dolph2vec biolingual aves_bio aves_core)
 inverse_regs=(0.1 1.0 10.0)
-datasets=(classification detection)
+datasets=(classification)
+classification_config="balanced"
 
 for model in "${models[@]}"; do
   for dataset in "${datasets[@]}"; do
-    echo "train_lr_splits: model=${model} inverse_regs=${inverse_regs[*]} dataset=${dataset}"
+    echo "train_lr_splits: model=${model} inverse_regs=${inverse_regs[*]} dataset=${dataset} classification_config=${classification_config}"
     python src/train_lr_splits.py \
       --model "$model" \
       --inverse_regs "${inverse_regs[@]}" \
-      --dataset_name "$dataset"
+      --dataset_name "$dataset" \
+      --classification_config "$classification_config"
     echo "===================================================="
   done
 done

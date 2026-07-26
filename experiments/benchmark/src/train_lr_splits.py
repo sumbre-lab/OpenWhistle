@@ -11,6 +11,8 @@ from conf import (
     get_aves_sample_rate,
 )
 from hf_datasets import (
+    CLASSIFICATION_ALL_CONFIG_NAME,
+    CLASSIFICATION_BALANCED_CONFIG_NAME,
     get_detection_label_vector,
     load_classification_splits,
     load_detection_splits,
@@ -18,7 +20,7 @@ from hf_datasets import (
 from metrics import MeanAveragePrecision
 from models import MFCC, Aves, BioLingual, Dolph2Vec, SpectralFeatures, Spectrogram
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 from sklearn.multioutput import MultiOutputClassifier
 from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
@@ -83,6 +85,16 @@ def get_args():
             "classification",
             "detection",
         ],
+    )
+
+    parser.add_argument(
+        "--classification_config",
+        choices=[
+            CLASSIFICATION_BALANCED_CONFIG_NAME,
+            CLASSIFICATION_ALL_CONFIG_NAME,
+        ],
+        default=CLASSIFICATION_ALL_CONFIG_NAME,
+        help="HF dataset config used for the classification task.",
     )
 
     parser.add_argument(
@@ -167,7 +179,7 @@ def detection_map_score(clf, x_eval, y_eval) -> float:
 def evaluate_classifier(dataset_name: str, clf, x_eval, y_eval) -> float:
     if dataset_name == "detection":
         return detection_map_score(clf, x_eval, y_eval)
-    return float(accuracy_score(y_eval, clf.predict(x_eval)))
+    return float(f1_score(y_eval, clf.predict(x_eval), average="macro"))
 
 
 def predict_for_metric(dataset_name: str, clf, x_eval) -> np.ndarray:
@@ -179,7 +191,7 @@ def predict_for_metric(dataset_name: str, clf, x_eval) -> np.ndarray:
 def score_predictions(dataset_name: str, y_true, y_pred_or_score) -> float:
     if dataset_name == "detection":
         return detection_map_from_scores(y_pred_or_score, y_true)
-    return float(accuracy_score(y_true, y_pred_or_score))
+    return float(f1_score(y_true, y_pred_or_score, average="macro"))
 
 
 def bootstrap_metric_scores(
@@ -251,7 +263,9 @@ def main():
     if args.dataset_name == "detection":
         dataset, _ = load_detection_splits()
     else:
-        dataset, _ = load_classification_splits()
+        dataset, _ = load_classification_splits(
+            config_name=args.classification_config
+        )
 
     x_train, y_train = embed_split(dataset["train"], "train", args.dataset_name, model)
     x_validation, y_validation = embed_split(
@@ -312,7 +326,7 @@ def main():
         else 0.0
     )
     std_score = bootstrap_std_score if final_bootstrap_scores else seed_std_score
-    metric_name = "mAP" if args.dataset_name == "detection" else "Accuracy"
+    metric_name = "mAP" if args.dataset_name == "detection" else "F1 Macro"
     c_grid = ", ".join(str(c) for c in inverse_regs)
     seed_grid = ", ".join(str(seed) for seed in seeds)
 

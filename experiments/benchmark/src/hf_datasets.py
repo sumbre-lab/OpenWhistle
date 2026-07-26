@@ -5,6 +5,7 @@ from datasets import Audio, ClassLabel, Sequence, concatenate_datasets, load_dat
 
 CLASSIFICATION_DATASET_ID = "OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning"
 CLASSIFICATION_BALANCED_CONFIG_NAME = "balanced"
+CLASSIFICATION_ALL_CONFIG_NAME = "all"
 DETECTION_DATASET_ID = "OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning"
 
 DETECTION_ONE_HOT_COLUMNS = (

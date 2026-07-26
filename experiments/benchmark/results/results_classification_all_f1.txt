@@ -1,0 +1,21 @@
+Model mfcc on dataset classification:
+Best C = 1.0 (validation F1 Macro = 0.2312)
+Logistic Regression Test F1 Macro: 0.2122 ± 0.0098
+Model spectrogram on dataset classification:
+Best C = 1.0 (validation F1 Macro = 0.3802)
+Logistic Regression Test F1 Macro: 0.3214 ± 0.0127
+Model spectral_features on dataset classification:
+Best C = 10.0 (validation F1 Macro = 0.1508)
+Logistic Regression Test F1 Macro: 0.1415 ± 0.0067
+Model dolph2vec on dataset classification:
+Best C = 0.1 (validation F1 Macro = 0.5495)
+Logistic Regression Test F1 Macro: 0.6037 ± 0.0263
+Model biolingual on dataset classification:
+Best C = 0.1 (validation F1 Macro = 0.4946)
+Logistic Regression Test F1 Macro: 0.5420 ± 0.0277
+Model aves_bio on dataset classification:
+Best C = 0.1 (validation F1 Macro = 0.5181)
+Logistic Regression Test F1 Macro: 0.5436 ± 0.0252
+Model aves_core on dataset classification:
+Best C = 0.1 (validation F1 Macro = 0.5044)
+Logistic Regression Test F1 Macro: 0.5160 ± 0.0234
