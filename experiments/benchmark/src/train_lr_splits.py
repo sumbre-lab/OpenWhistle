@@ -5,6 +5,10 @@ from pathlib import Path
 import numpy as np
 import torch
 from conf import (
+    AVES_BIO_PRETRAIN_SAMPLE_RATE,
+    AVES_BIO_PRETRAIN_VARIANTS,
+    WAV2VEC2_PRETRAIN_SAMPLE_RATE,
+    WAV2VEC2_PRETRAIN_VARIANTS,
     dolph2vec_config_path,
     dolph2vec_base,
     get_aves_paths,
@@ -18,7 +22,15 @@ from hf_datasets import (
     load_detection_splits,
 )
 from metrics import MeanAveragePrecision
-from models import MFCC, Aves, BioLingual, Dolph2Vec, SpectralFeatures, Spectrogram
+from models import (
+    MFCC,
+    Aves,
+    AvesBioPretrain,
+    BioLingual,
+    Dolph2Vec,
+    SpectralFeatures,
+    Spectrogram,
+)
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score
 from sklearn.multioutput import MultiOutputClassifier
@@ -26,6 +38,16 @@ from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler
 
 LR_MAX_ITER = 20000
+
+# NOT ANONYMIZED, see the warning in conf.py.
+AVES_BIO_PRETRAIN_MODEL_CHOICES = {
+    f"aves_bio_pretrain_{variant}": repo_id
+    for variant, repo_id in AVES_BIO_PRETRAIN_VARIANTS.items()
+}
+WAV2VEC2_PRETRAIN_MODEL_CHOICES = {
+    f"wav2vec2_pretrain_{variant}": repo_id
+    for variant, repo_id in WAV2VEC2_PRETRAIN_VARIANTS.items()
+}
 
 
 def set_seed(seed: int = 42):
@@ -107,6 +129,8 @@ def get_args():
             "mfcc",
             "spectrogram",
             "spectral_features",
+            *AVES_BIO_PRETRAIN_MODEL_CHOICES,
+            *WAV2VEC2_PRETRAIN_MODEL_CHOICES,
         ],
         default="dolph2vec",
     )
@@ -237,22 +261,38 @@ def main():
         "mfcc": MFCC,
         "spectrogram": Spectrogram,
         "spectral_features": SpectralFeatures,
+        **{name: AvesBioPretrain for name in AVES_BIO_PRETRAIN_MODEL_CHOICES},
+        **{name: Dolph2Vec for name in WAV2VEC2_PRETRAIN_MODEL_CHOICES},
     }
 
     actual_sample_rate = args.target_sample_rate
+    dolph2vec_model_path = dolph2vec_base
+    dolph2vec_model_config_path = dolph2vec_config_path
+    pretrain_repo_id = ""
+
     if args.model == "aves_bio":
         aves_model_path, aves_config_path = get_aves_paths("bio")
         actual_sample_rate = get_aves_sample_rate("bio")
     elif args.model == "aves_core":
         aves_model_path, aves_config_path = get_aves_paths("core")
         actual_sample_rate = get_aves_sample_rate("core")
+    elif args.model in WAV2VEC2_PRETRAIN_MODEL_CHOICES:
+        aves_model_path, aves_config_path = "", ""
+        dolph2vec_model_path = WAV2VEC2_PRETRAIN_MODEL_CHOICES[args.model]
+        dolph2vec_model_config_path = dolph2vec_model_path
+        actual_sample_rate = WAV2VEC2_PRETRAIN_SAMPLE_RATE
+    elif args.model in AVES_BIO_PRETRAIN_MODEL_CHOICES:
+        aves_model_path, aves_config_path = "", ""
+        pretrain_repo_id = AVES_BIO_PRETRAIN_MODEL_CHOICES[args.model]
+        actual_sample_rate = AVES_BIO_PRETRAIN_SAMPLE_RATE
     else:
         aves_model_path, aves_config_path = "", ""
 
     model_args = dict(
         sample_rate=actual_sample_rate,
-        dolph2vec_config_path=dolph2vec_config_path,
-        dolph2vec_model_path=dolph2vec_base,
+        dolph2vec_config_path=dolph2vec_model_config_path,
+        dolph2vec_model_path=dolph2vec_model_path,
+        pretrain_repo_id=pretrain_repo_id,
     )
 
     model_args["aves_model_path"] = aves_model_path
@@ -330,8 +370,13 @@ def main():
     c_grid = ", ".join(str(c) for c in inverse_regs)
     seed_grid = ", ".join(str(seed) for seed in seeds)
 
+    dataset_label = (
+        f"{args.dataset_name}-{args.classification_config}"
+        if args.dataset_name != "detection"
+        else args.dataset_name
+    )
     result_text = (
-        f"Model {args.model} on dataset {args.dataset_name}:\n"
+        f"Model {args.model} on dataset {dataset_label}:\n"
         f"Best C = {best_c} "
         f"(validation {metric_name} = {best_validation_score:.4f})\n"
         f"Logistic Regression Test {metric_name}: {mean_score:.4f} ± {std_score:.4f}"

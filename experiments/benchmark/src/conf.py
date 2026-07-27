@@ -113,3 +113,40 @@ def get_aves_sample_rate(variant: str):
 
 dolph2vec_base = "OpenWhistleNeurIPS26/OpenWhistle-Wav2Vec2.0"
 dolph2vec_config_path = dolph2vec_base
+
+# =============================================================================
+# WARNING: NOT ANONYMIZED. DO NOT MERGE OR PUSH THIS BLOCK TO `main`.
+#
+# The repo IDs below live under the "dolphinteam" HF org, which reveals
+# author identity ahead of NeurIPS 2026 double-blind review. They are for
+# local pretraining-size ablations on feature branches only. Before opening
+# a PR into `main`, remove this block or repoint it at anonymized
+# `OpenWhistleNeurIPS26` org copies.
+# =============================================================================
+
+# AVES-bio checkpoints exported as HF `HubertModel` (see
+# models.AvesBioPretrain). These were pretrained at 16kHz (the "44kHz" name
+# on the continuous-pretraining ones refers to a BTB3 band-shift transform
+# applied to the pretraining audio, not the model's native input rate).
+# We deliberately evaluate at AVES_BIO_PRETRAIN_SAMPLE_RATE (44.1kHz) below
+# to match the rest of the benchmark's models, not the 16kHz training rate.
+AVES_BIO_PRETRAIN_VARIANTS = {
+    # different pretraining sizes
+    "10pct": "dolphinteam/AVES-bio-OpenWhistle-10pct",
+    "50pct": "dolphinteam/AVES-bio-OpenWhistle-50pct",
+    "100pct": "dolphinteam/AVES-bio-OpenWhistle-100pct",
+    # continuous-learning different pretraining sizes
+    "10pct_44khz": "dolphinteam/AVES-bio-OpenWhistle-10pct-44kHz",
+    "50pct_44khz": "dolphinteam/AVES-bio-OpenWhistle-50pct-44kHz",
+    "100pct_44khz": "dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz",
+}
+AVES_BIO_PRETRAIN_SAMPLE_RATE = 44100
+
+# Wav2Vec2.0 checkpoints with different pretraining sizes, same HF
+# `Wav2Vec2Model` loading path as `dolph2vec_base` above.
+WAV2VEC2_PRETRAIN_VARIANTS = {
+    "10pct": "dolphinteam/wav2vec2-44k-stride960-10pct-40k",
+    "50pct": "dolphinteam/wav2vec2-44k-stride960-50pct-200k",
+    "transformers": "dolphinteam/wav2vec2-44k-stride960-transformers",
+}
+WAV2VEC2_PRETRAIN_SAMPLE_RATE = 44100

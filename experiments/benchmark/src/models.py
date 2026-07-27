@@ -7,6 +7,7 @@ from typing import Any
 from transformers import (
     ClapModel,
     ClapProcessor,
+    HubertModel,
     Wav2Vec2FeatureExtractor,
     Wav2Vec2Model,
 )
@@ -143,6 +144,37 @@ class Dolph2Vec:
                 dolph2vec_config_path
             )
         self.model = Wav2Vec2Model.from_pretrained(dolph2vec_model_path)
+
+        self.device = infer_device()
+        self.model = self.model.to(self.device).eval()
+        self.sample_rate = sample_rate
+
+    def __call__(self, file_path):
+        waveform = get_waveform(file_path, self.sample_rate).squeeze().numpy()
+
+        features = self.feature_extractor(
+            raw_speech=waveform,
+            padding="longest",
+            return_tensors="pt",
+            sampling_rate=self.sample_rate,
+        )["input_values"].to(self.device)
+
+        with torch.no_grad():
+            res = self.model(features, output_hidden_states=True)
+
+        return res.hidden_states[-1].mean(1).squeeze()
+
+
+class AvesBioPretrain:
+    def __init__(self, pretrain_repo_id: str, sample_rate: int = 44100, *args, **kwargs):
+        self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(pretrain_repo_id)
+        self.model = HubertModel.from_pretrained(pretrain_repo_id)
+
+        # These checkpoints were pretrained at 16kHz, but we deliberately
+        # evaluate at `sample_rate` (44.1kHz by default) to match the rest
+        # of the benchmark. Override the extractor's configured rate so it
+        # doesn't raise on the mismatch instead of silently ignoring it.
+        self.feature_extractor.sampling_rate = sample_rate
 
         self.device = infer_device()
         self.model = self.model.to(self.device).eval()
