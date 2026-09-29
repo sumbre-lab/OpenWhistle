@@ -1,6 +1,9 @@
 # OpenWhistle: A Large-Scale Longitudinal Dataset and Benchmark of Bottlenose Dolphin Vocalizations
 
-This repository accompanies the **OpenWhistle** paper. It provides code to access data and reproduce the article experiments: running the benchmark across multiple models and pretraining a Wav2Vec2.0 model on OpenWhistle. It also includes the code for whistle presence detection and segmentation in the data processing pipeline, as well as scripts to reproduce the figures from the manuscript.
+This repository accompanies the **OpenWhistle** paper, accepted as a **Spotlight at the NeurIPS 2026 Datasets & Evaluations Track**. It provides code to access the data and reproduce the article experiments: running the benchmark across multiple models and pretraining a Wav2Vec2.0 model on OpenWhistle. It also includes the code for whistle presence detection and segmentation in the data processing pipeline, as well as scripts to reproduce the figures from the manuscript.
+
+- **Paper:** [OpenWhistle: A Large-Scale Longitudinal Dataset and Benchmark of Bottlenose Dolphin Vocalizations](https://arxiv.org/abs/2609.34839)
+- **Hugging Face collection:** [[NeurIPS'26] OpenWhistle](https://huggingface.co/collections/dolphinteam/neurips26-openwhistle-6a2ac4d02f951a035d8329dd)
 
 <p align="center">
   <img src="Annotation_Pipeline.png" alt="OpenWhistle annotation and processing pipeline" width="720">
@@ -11,12 +14,19 @@ This repository accompanies the **OpenWhistle** paper. It provides code to acces
 
 | Resource | Hugging Face link | Review samples |
 |----------|-------------------|----------------|
-| **Pretraining corpus** (long-form unlabeled / weakly processed audio and segments for self-supervised and large-scale use) | [OpenWhistleNeurIPS26/OpenWhistle-Pretraining](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Pretraining) | [review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Pretraining/viewer/review-sample/train) |
-| **Classification benchmark** (expert-annotated clips and labels) | [OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning) | [balanced-review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning/viewer/balanced-review-sample/train) |
-| **Detection benchmark** (expert-annotated windows for detection) | [OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning) | n/a |
-| **CNN training set** (audio windows, spectrograms, and binary whistle/noise labels) | [OpenWhistleNeurIPS26/OpenWhistle-CNN](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-CNN) | [review-sample](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-CNN/viewer/review-sample/train) |
+| **Pretraining corpus** (long-form unlabeled / weakly processed audio and segments for self-supervised and large-scale use) | [dolphinteam/OpenWhistle-Pretraining](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Pretraining) | [review-sample](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Pretraining/viewer/review-sample/train) |
+| **Classification benchmark** (expert-annotated clips and labels) | [dolphinteam/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Classification-Finetuning) | [balanced-review-sample](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Classification-Finetuning/viewer/balanced-review-sample/train) |
+| **Detection benchmark** (expert-annotated windows for detection) | [dolphinteam/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Detection-Finetuning) | n/a |
+| **CNN training set** (audio windows, spectrograms, and binary whistle/noise labels) | [dolphinteam/OpenWhistle-CNN](https://huggingface.co/datasets/dolphinteam/OpenWhistle-CNN) | [review-sample](https://huggingface.co/datasets/dolphinteam/OpenWhistle-CNN/viewer/review-sample/train) |
 
 The OpenWhistle Hugging Face datasets are released under **CC-BY 4.0**.
+
+## Hugging Face models
+
+| Model | Task | Hugging Face link |
+|-------|------|-------------------|
+| **OpenWhistle Wav2Vec2.0** | Self-supervised acoustic representation learning and downstream feature extraction | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
+| **OpenWhistle CNN VGG16** | Binary whistle/noise classification from spectrogram windows | [dolphinteam/OpenWhistle-CNN-VGG16](https://huggingface.co/dolphinteam/OpenWhistle-CNN-VGG16) |
 
 ## Repository layout
 
@@ -58,4 +68,20 @@ For CNN-specific training and evaluation (whistle presence / segmentation branch
 
 ## Citation
 
-If you use OpenWhistle or this repository, please cite the paper when it is available.
+If you use OpenWhistle, its datasets, models, or this repository, please cite:
+
+```bibtex
+@misc{mustun2026openwhistle,
+  title         = {OpenWhistle: A Large-Scale Longitudinal Dataset and Benchmark of Bottlenose Dolphin Vocalizations},
+  author        = {Mustun, Faadil and Semenzin, Chiara and Dessi, Roberto and Robin Guerrero, Pablo and Orhan, Pierre and Emanuelli, Alexis and Rossi, Emanuele and Lakretz, Yair and de Polavieja, Gonzalo and Sumbre, German},
+  year          = {2026},
+  eprint        = {2609.34839},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  url           = {https://arxiv.org/abs/2609.34839}
+}
+```
+
+## Authors
+
+Faadil Mustun, Chiara Semenzin, Roberto Dessi, Pablo Robin Guerrero, Pierre Orhan, Alexis Emanuelli, Emanuele Rossi, Yair Lakretz, Gonzalo de Polavieja, and German Sumbre.
