@@ -12,12 +12,12 @@ This repository accompanies the **OpenWhistle** paper, accepted as a **Spotlight
 
 ## Hugging Face datasets
 
-| Resource | Hugging Face link | Review samples |
-|----------|-------------------|----------------|
-| **Pretraining corpus** (long-form unlabeled / weakly processed audio and segments for self-supervised and large-scale use) | [dolphinteam/OpenWhistle-Pretraining](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Pretraining) | [review-sample](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Pretraining/viewer/review-sample/train) |
-| **Classification benchmark** (expert-annotated clips and labels) | [dolphinteam/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Classification-Finetuning) | [balanced-review-sample](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Classification-Finetuning/viewer/balanced-review-sample/train) |
-| **Detection benchmark** (expert-annotated windows for detection) | [dolphinteam/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Detection-Finetuning) | n/a |
-| **CNN training set** (audio windows, spectrograms, and binary whistle/noise labels) | [dolphinteam/OpenWhistle-CNN](https://huggingface.co/datasets/dolphinteam/OpenWhistle-CNN) | [review-sample](https://huggingface.co/datasets/dolphinteam/OpenWhistle-CNN/viewer/review-sample/train) |
+| Resource | Hugging Face link |
+|----------|-------------------|
+| **Pretraining corpus** (long-form unlabeled / weakly processed audio and segments for self-supervised and large-scale use) | [dolphinteam/OpenWhistle-Pretraining](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Pretraining) |
+| **Classification benchmark** (expert-annotated clips and labels) | [dolphinteam/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Classification-Finetuning) |
+| **Detection benchmark** (expert-annotated windows for detection) | [dolphinteam/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Detection-Finetuning) |
+| **CNN training set** (audio windows, spectrograms, and binary whistle/noise labels) | [dolphinteam/OpenWhistle-CNN](https://huggingface.co/datasets/dolphinteam/OpenWhistle-CNN) |
 
 The OpenWhistle Hugging Face datasets are released under **CC-BY 4.0**.
 
