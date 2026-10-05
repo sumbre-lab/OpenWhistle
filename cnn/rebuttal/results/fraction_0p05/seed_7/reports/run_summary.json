@@ -1,0 +1,74 @@
+{
+  "dataset_source": "OpenWhistleNeurIPS26/OpenWhistle-CNN",
+  "train_input_source": "spectrogram",
+  "best_epoch": 2,
+  "best_val_loss": 0.26915356616511393,
+  "best_model_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/models/model_best.pt",
+  "split_summary": {
+    "train": {
+      "rows": 3502,
+      "whistles": 1751,
+      "noise": 1751,
+      "sessions": 10
+    },
+    "validation": {
+      "rows": 5980,
+      "whistles": 2990,
+      "noise": 2990,
+      "sessions": 26
+    },
+    "test": {
+      "rows": 16708,
+      "whistles": 8354,
+      "noise": 8354,
+      "sessions": 261
+    }
+  },
+  "metrics": {
+    "validation": {
+      "loss": 0.26915356616511393,
+      "accuracy": 0.9190635451505017,
+      "f1": 0.9152957647882394,
+      "precision": 0.9599853157121879,
+      "recall": 0.8745819397993311,
+      "positive_prediction_rate": 0.45551839464882943
+    },
+    "test": {
+      "loss": 0.12676123219127713,
+      "accuracy": 0.9734259037586784,
+      "f1": 0.9735241502683363,
+      "precision": 0.9699382129277566,
+      "recall": 0.9771367009815657,
+      "positive_prediction_rate": 0.5037107972228873
+    }
+  },
+  "artifacts": {
+    "model": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/models/model_best.pt",
+    "figures_dir": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/figures",
+    "reports_dir": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/reports",
+    "validation_session_report_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/reports/validation_session_metrics.csv",
+    "test_session_report_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/reports/test_session_metrics.csv",
+    "confusion_matrices": {
+      "validation": {
+        "csv_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/reports/validation_confusion_matrix.csv",
+        "figure_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/figures/validation_confusion_matrix.png",
+        "counts": {
+          "tn": 2881,
+          "fp": 109,
+          "fn": 375,
+          "tp": 2615
+        }
+      },
+      "test": {
+        "csv_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/reports/test_confusion_matrix.csv",
+        "figure_path": "/home/pablo/Documents/OpenWhistle/cnn/rebuttal/results/fraction_0p05/seed_7/figures/test_confusion_matrix.png",
+        "counts": {
+          "tn": 8101,
+          "fp": 253,
+          "fn": 191,
+          "tp": 8163
+        }
+      }
+    }
+  }
+}

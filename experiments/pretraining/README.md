@@ -6,13 +6,13 @@ the OpenWhistle NeurIPS paper.
 The training source is the public Hugging Face corpus:
 
 ```text
-OpenWhistleNeurIPS26/OpenWhistle-Pretraining
+dolphinteam/OpenWhistle-Pretraining
 ```
 
 The resulting checkpoint corresponds to:
 
 ```text
-OpenWhistleNeurIPS26/OpenWhistle-Wav2Vec2.0
+dolphinteam/OpenWhistle-Wav2Vec2.0
 ```
 
 ## Installation
@@ -50,7 +50,7 @@ Smoke test on the small review split:
 
 ```bash
 python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
-  --path_data OpenWhistleNeurIPS26/OpenWhistle-Pretraining \
+  --path_data dolphinteam/OpenWhistle-Pretraining \
   --path_data_config review-sample \
   --output_dir experiments/pretraining/artifacts/outputs/review_sample \
   --nb_nodes 1 \
@@ -62,7 +62,7 @@ Full pretraining run:
 
 ```bash
 python experiments/pretraining/ANNpretraining/pretraining/submit_dolphin.py \
-  --path_data OpenWhistleNeurIPS26/OpenWhistle-Pretraining \
+  --path_data dolphinteam/OpenWhistle-Pretraining \
   --path_data_config default
 ```
 

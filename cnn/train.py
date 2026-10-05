@@ -12,11 +12,11 @@ from torch.utils.data import DataLoader
 from utils.artifacts import (
     build_session_report_rows,
     maybe_build_roc_curve,
-    plot_roc_curves,
     plot_training_curves,
     print_session_report_preview,
     save_checkpoint,
     save_confusion_matrix_artifacts,
+    save_roc_artifacts,
     write_run_summary_json,
     write_session_report_csv,
     write_test_only_summary_json,
@@ -182,7 +182,9 @@ class TorchTrainingRun:
             self.config,
         )
         test_roc = maybe_build_roc_curve(self.config.test_split, test_metrics)
-        plot_roc_curves([test_roc] if test_roc is not None else [], self.config)
+        if test_roc is not None:
+            test_metrics['roc_auc'] = test_roc[-1]
+        save_roc_artifacts([test_roc] if test_roc is not None else [], self.config)
         confusion_artifacts = {
             self.config.test_split: {
                 'csv_path': test_confusion_csv_path,
@@ -399,12 +401,14 @@ class TorchTrainingRun:
             validation_metrics,
         )
         if validation_roc is not None:
+            validation_metrics['roc_auc'] = validation_roc[-1]
             roc_curves.append(validation_roc)
         if test_metrics is not None:
             test_roc = maybe_build_roc_curve(self.config.test_split, test_metrics)
             if test_roc is not None:
+                test_metrics['roc_auc'] = test_roc[-1]
                 roc_curves.append(test_roc)
-        plot_roc_curves(roc_curves, self.config)
+        save_roc_artifacts(roc_curves, self.config)
         wandb_log_artifact_images(self.wandb_run, self.config)
 
         confusion_artifacts: dict[str, dict[str, object]] = {

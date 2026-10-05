@@ -1,0 +1,7 @@
+model,dataset_config,task,metric,mean_percent,std_percent,protocol
+aves_core,balanced,classification,Accuracy,68.0,2.2,frozen_encoder_logistic_regression
+aves_core,default,detection,mAP,57.4,2.1,frozen_encoder_logistic_regression
+biolingual,balanced,classification,Accuracy,71.3,2.1,frozen_encoder_logistic_regression
+biolingual,default,detection,mAP,66.5,2.2,frozen_encoder_logistic_regression
+aves_bio,balanced,classification,Accuracy,75.1,2.1,frozen_encoder_logistic_regression
+aves_bio,default,detection,mAP,65.0,2.3,frozen_encoder_logistic_regression

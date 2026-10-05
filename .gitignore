@@ -95,9 +95,9 @@ Thumbs.db
 .vscode/
 
 # --- Generated figures (OpenWhistle/figures) ---
-figures/output/
+datasets_figures/output/
 # Large optional CSV (~25 MB; copy from DolphinDataset outputs/pretraining/ if needed)
-figures/data/inter_detected_whistle_intervals.csv
+datasets_figures/data/inter_detected_whistle_intervals.csv
 
 # --- Logs & temp ---
 *.log
@@ -105,3 +105,8 @@ figures/data/inter_detected_whistle_intervals.csv
 *.temp
 .tmp/
 .temp/
+
+# Reproducible reports are versioned; local weights and embedding caches are not.
+experiments/benchmark/checkpoints/
+experiments/benchmark/results/embedding_cache/
+experiments/pretraining/artifacts/

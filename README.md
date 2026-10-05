@@ -67,6 +67,7 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 ├── datasets_figures/       # scripts for the dataset overview figures
 ├── experiments/
 │   ├── benchmark/          # frozen-embedding + logistic-regression benchmark
+│   ├── finetuning/          # supervised encoder fine-tuning
 │   └── pretraining/        # self-supervised pretraining code
 ├── Annotation_Pipeline.png
 ├── LICENSE-DATA            # CC BY 4.0 terms for the OpenWhistle datasets
@@ -80,7 +81,7 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 
 ## Running the benchmark
 
-The benchmark trains logistic-regression heads on frozen embeddings for each model family, inverse regularization value, cross-validation split, and task (classification or detection). The sweep includes:
+The benchmark trains logistic-regression heads on frozen embeddings for each model family and task (classification or detection). The regularization strength is selected on the validation split; the final probe is refit on train + validation and evaluated on the held-out test split. The sweep includes:
 
 `mfcc`, `spectrogram`, `spectral_features`, `dolph2vec`, `biolingual`, `aves_bio`, `aves_core`
 
@@ -95,6 +96,12 @@ pip install -r requirements.txt
 If you need a specific CUDA or CPU PyTorch build, install `torch` and `torchaudio` from the [PyTorch installation guide](https://pytorch.org/get-started/locally/) before installing the requirements.
 
 `run_all.sh` runs the classification and detection benchmarks, then generates micro-averaged precision–recall curves. Outputs are written under `experiments/benchmark/results/`. For CNN-specific training and evaluation, use [`cnn/`](cnn/) instead of the benchmark driver.
+
+## Additional experiments
+
+The rebuttal additions include pretraining-size ablations, supervised encoder fine-tuning, open-set evaluation, CNN learning curves, and ROC/UMAP figures. See the [benchmark README](experiments/benchmark/README.md), [fine-tuning README](experiments/finetuning/README.md), and [CNN learning-curve README](cnn/rebuttal/README.md) for commands.
+
+The [camera-ready branch review](docs/camera-ready-review.md) records the source branches, integration decisions, result provenance, and remaining release checks.
 
 ## Authors
 

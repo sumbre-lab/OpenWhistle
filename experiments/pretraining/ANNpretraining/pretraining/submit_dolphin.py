@@ -24,7 +24,7 @@ DEFAULT_SLURM_ACCOUNT = os.environ.get("OPENWHISTLE_SLURM_ACCOUNT", "")
 def get_parser():
     parser = argparse.ArgumentParser(description='Launch the training loop')
     parser.add_argument('--path_data', type=str,
-                        default="OpenWhistleNeurIPS26/OpenWhistle-Pretraining",
+                        default="dolphinteam/OpenWhistle-Pretraining",
                         help='local dataset path or Hugging Face dataset id')
     parser.add_argument('--path_data_config', type=str,
                         default="default",

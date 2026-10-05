@@ -1,6 +1,6 @@
 """Render ``fig_classification_overview`` from the HF classification dataset plus CSV sidecars.
 
-Loads ``OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning`` (config ``all``) by default.
+Loads ``dolphinteam/OpenWhistle-Classification-Finetuning`` (config ``all``) by default.
 Whistle-sequence durations for panel B are read from the HF pretraining segments dataset when
 possible; otherwise from ``data/audio_segment_durations.csv``.
 

@@ -35,5 +35,5 @@ for dataset in "${datasets[@]}"; do
     --out_name "pr_micro_${dataset}.png"
 done
 
-echo "Finished. Training logs: ${ROOT}/results/results_k_fold_datasets.txt and ${ROOT}/results/results_OW_detection.txt"
+echo "Finished. Training logs: ${ROOT}/results/results_classification.txt and ${ROOT}/results/results_detection.txt"
 echo "PR plots and CSVs: ${ROOT}/results/pr_curves/"

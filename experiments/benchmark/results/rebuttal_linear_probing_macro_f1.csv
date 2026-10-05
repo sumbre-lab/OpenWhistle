@@ -1,0 +1,10 @@
+model_label,model_id,family,dataset_name,dataset_config,metric,validation_score,best_c,test_mean,test_std,seed_std,bootstrap_std,num_seeds,num_bootstrap,normalize_data,embedding_batch_size,mixed_precision,amp_dtype,feature_mode,embedding_pipeline_version,target_sample_rate
+aves_core,aves_core,AVES-Bio,classification,balanced,Macro-F1,0.67218953,0.1,0.67385646,0.02136057,0.00000000,0.02136057,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+aves_core,aves_core,AVES-Bio,classification,unbalanced,Macro-F1,0.47598433,0.1,0.50996493,0.02676416,0.00000000,0.02676416,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+aves_core,aves_core,AVES-Bio,classification,all,Macro-F1,0.50404576,0.1,0.51574635,0.02335613,0.00000000,0.02335613,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+biolingual,biolingual,biolingual,classification,balanced,Macro-F1,0.72168775,0.1,0.70976472,0.02052309,0.00000000,0.02052309,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+biolingual,biolingual,biolingual,classification,unbalanced,Macro-F1,0.53171436,0.1,0.52929497,0.02106312,0.00000000,0.02106312,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+biolingual,biolingual,biolingual,classification,all,Macro-F1,0.49344783,0.1,0.54003466,0.02774430,0.00000000,0.02774430,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+aves_bio,aves_bio,AVES-Bio,classification,balanced,Macro-F1,0.73469363,0.1,0.75130432,0.02026259,0.00000000,0.02026259,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+aves_bio,aves_bio,AVES-Bio,classification,unbalanced,Macro-F1,0.51116093,0.1,0.51243952,0.02523471,0.00000000,0.02523471,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100
+aves_bio,aves_bio,AVES-Bio,classification,all,Macro-F1,0.51833383,0.1,0.52688613,0.02314378,0.00000000,0.02314378,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100

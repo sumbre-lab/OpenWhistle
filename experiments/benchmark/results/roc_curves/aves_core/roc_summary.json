@@ -1,0 +1,85 @@
+{
+  "model_id": "aves_core",
+  "dataset_id": "OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning",
+  "dataset_config": "default",
+  "split": "test",
+  "task": "seven-label whistle-type detection",
+  "score": "positive-class probability from each logistic detection head",
+  "embedding_pipeline_version": "masked-padding-btb3-v5",
+  "feature_mode": "standard",
+  "standardize_embeddings": true,
+  "seed": 42,
+  "c_selection_metric": "validation mAP",
+  "c_grid": [
+    0.1,
+    1.0,
+    10.0
+  ],
+  "best_c": 0.1,
+  "validation_scores": [
+    {
+      "c": 0.1,
+      "map": 0.5555902719497681
+    },
+    {
+      "c": 1.0,
+      "map": 0.5007087588310242
+    },
+    {
+      "c": 10.0,
+      "map": 0.47042039036750793
+    }
+  ],
+  "test_map": 0.5736985206604004,
+  "n_examples": {
+    "train": 3920,
+    "validation": 840,
+    "test": 840
+  },
+  "micro_roc_auc": 0.8918384789813362,
+  "macro_roc_auc": 0.8815262515262516,
+  "per_label": [
+    {
+      "label": "SW_Neo",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.9072008547008548
+    },
+    {
+      "label": "SW_Luna",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.8172863247863248
+    },
+    {
+      "label": "SW_Nikita",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.9444444444444444
+    },
+    {
+      "label": "SW_Nana",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.9247435897435897
+    },
+    {
+      "label": "SW_Yosefa",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.7055769230769231
+    },
+    {
+      "label": "SW_Dana",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.9034188034188034
+    },
+    {
+      "label": "NSW_1",
+      "n_positive": 60,
+      "n_negative": 780,
+      "roc_auc": 0.9680128205128206
+    }
+  ]
+}

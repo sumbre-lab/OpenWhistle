@@ -1,0 +1,2 @@
+model_label,model_id,family,dataset_name,dataset_config,metric,validation_score,best_c,test_mean,test_std,seed_std,bootstrap_std,num_seeds,num_bootstrap,normalize_data,embedding_batch_size,mixed_precision,amp_dtype,feature_mode,embedding_pipeline_version,target_sample_rate
+aves_bio,aves_bio,AVES-Bio,classification,unbalanced,Macro-F1,0.51116093,0.1,0.51243952,0.02523471,0.00000000,0.02523471,10,1000,True,64,True,float16,standard,masked-padding-btb3-v5,44100

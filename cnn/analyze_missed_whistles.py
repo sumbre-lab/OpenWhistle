@@ -1,7 +1,7 @@
 """Characterize CNN false negatives (missed whistles) on the test split.
 
 Runs the published VGG16 whistle detector over the held-out `test` split of
-OpenWhistleNeurIPS26/OpenWhistle-CNN, isolates false negatives (true label
+dolphinteam/OpenWhistle-CNN, isolates false negatives (true label
 whistle, predicted noise), and computes an SNR estimate plus other acoustic
 measures for every whistle-labeled clip (missed and detected) so the two
 groups can be compared.
@@ -33,7 +33,7 @@ from utils.model import (
     resample_audio_if_needed,
 )
 
-DATASET_REPO = 'OpenWhistleNeurIPS26/OpenWhistle-CNN'
+DATASET_REPO = 'dolphinteam/OpenWhistle-CNN'
 TEST_SPLIT = 'test'
 
 COLOR_DETECTED = '#2a78d6'
@@ -74,7 +74,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help='Local checkpoint override. Defaults to the published Hugging Face model.',
     )
-    parser.add_argument('--model-repo', default='OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16', help=argparse.SUPPRESS)
+    parser.add_argument('--model-repo', default='dolphinteam/OpenWhistle-CNN-VGG16', help=argparse.SUPPRESS)
     parser.add_argument('--model-filename', default='model_vgg_final_best.pt', help=argparse.SUPPRESS)
     parser.add_argument('--output-dir', type=Path, default=Path('cnn/runs/analysis'))
     parser.add_argument('--batch-size', type=int, default=64)

@@ -1,0 +1,8 @@
+model_label,model_id,family,dataset_name,dataset_config,metric,validation_score,best_c,test_mean,test_std,seed_std,bootstrap_std,num_seeds,num_bootstrap,normalize_data,embedding_batch_size,mixed_precision,amp_dtype,feature_mode,embedding_pipeline_version,target_sample_rate
+mfcc,mfcc,mfcc,detection,default,mAP,0.30640531,10.0,0.33905151,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100
+spectrogram,spectrogram,spectrogram,detection,default,mAP,0.42687622,0.1,0.47800466,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100
+spectral_features,spectral_features,spectral_features,detection,default,mAP,0.24974927,10.0,0.26341587,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100
+dolph2vec,dolph2vec,dolph2vec,detection,default,mAP,0.73819107,0.1,0.75772011,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100
+biolingual,biolingual,biolingual,detection,default,mAP,0.58188099,0.1,0.66523761,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100
+aves_core,aves_core,AVES-Bio,detection,default,mAP,0.55559027,0.1,0.57369852,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100
+aves_bio,aves_bio,AVES-Bio,detection,default,mAP,0.60296249,0.1,0.64989549,0.00000000,0.00000000,0.00000000,1,0,True,8,False,float16,standard,masked-padding-btb3-v5,44100

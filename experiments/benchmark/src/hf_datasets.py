@@ -3,9 +3,9 @@ from __future__ import annotations
 from datasets import Audio, ClassLabel, Sequence, concatenate_datasets, load_dataset
 
 
-CLASSIFICATION_DATASET_ID = "OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning"
+CLASSIFICATION_DATASET_ID = "dolphinteam/OpenWhistle-Classification-Finetuning"
 CLASSIFICATION_BALANCED_CONFIG_NAME = "balanced"
-DETECTION_DATASET_ID = "OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning"
+DETECTION_DATASET_ID = "dolphinteam/OpenWhistle-Detection-Finetuning"
 
 DETECTION_ONE_HOT_COLUMNS = (
     "SW_Neo",
@@ -47,14 +47,19 @@ def _load_concat_splits(
 
 def load_classification_examples(
     config_name: str = CLASSIFICATION_BALANCED_CONFIG_NAME,
+    splits: tuple[str, ...] | None = None,
 ):
     ds = load_dataset(CLASSIFICATION_DATASET_ID, name=config_name)
     first_split = next(iter(ds.values()))
     label_feature = first_split.features["label"]
     if not isinstance(label_feature, ClassLabel):
         raise TypeError("Classification dataset label must be a ClassLabel.")
-    splits = _require_train_test_splits(ds, CLASSIFICATION_DATASET_ID)
-    ds = concatenate_datasets([ds[split] for split in splits]).cast_column(
+    split_names = (
+        _require_train_test_splits(ds, CLASSIFICATION_DATASET_ID)
+        if splits is None
+        else _require_splits(ds, CLASSIFICATION_DATASET_ID, splits)
+    )
+    ds = concatenate_datasets([ds[split] for split in split_names]).cast_column(
         "audio", Audio(decode=True)
     )
     return ds, ds.features["label"]

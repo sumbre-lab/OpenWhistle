@@ -111,5 +111,5 @@ def get_aves_sample_rate(variant: str):
     return AVES_VARIANTS[variant]["sample_rate"]
 
 
-dolph2vec_base = "OpenWhistleNeurIPS26/OpenWhistle-Wav2Vec2.0"
+dolph2vec_base = "dolphinteam/OpenWhistle-Wav2Vec2.0"
 dolph2vec_config_path = dolph2vec_base

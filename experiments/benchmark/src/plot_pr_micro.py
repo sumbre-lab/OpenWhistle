@@ -4,7 +4,7 @@ Build a single figure: micro-averaged precision–recall (OvR, pooled) per model
 Uses the same split protocol as train_lr_splits.py (no k-fold):
 
 - Train / validation / test from load_*_splits().
-- C is chosen by validation accuracy (classification) or validation mAP (detection)
+- C is chosen by validation macro-F1 (classification) or validation mAP (detection)
   over --inverse_regs, with the scaler fit on training data only for that stage.
 - Final logistic regression is fit on train+validation (with scaler fit on that union),
   then micro PR is computed on the test split probability estimates.
@@ -115,7 +115,7 @@ def micro_pr_curve(y_true: np.ndarray, y_score: np.ndarray, classes: np.ndarray)
         if y_score.shape[1] == 1:
             y_score = np.hstack([1 - y_score, y_score])
     precision, recall, _ = precision_recall_curve(y_b.ravel(), y_score.ravel())
-    ap = average_precision_score(y_true, y_score, average="micro")
+    ap = average_precision_score(y_b, y_score, average="micro")
     return precision, recall, ap
 
 
@@ -178,7 +178,7 @@ def parse_args():
         type=float,
         nargs="+",
         default=[0.1, 1.0, 10.0],
-        help="Candidate C values; best is chosen on the validation split (accuracy or mAP).",
+        help="Candidate C values; best is chosen on validation macro-F1 or mAP.",
     )
     p.add_argument("--target_sample_rate", type=int, default=44100)
     p.add_argument(

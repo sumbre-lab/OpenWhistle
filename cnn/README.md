@@ -21,7 +21,7 @@ whistle detection.
 By default, training reads the public Hugging Face dataset:
 
 ```bash
-OpenWhistleNeurIPS26/OpenWhistle-CNN
+dolphinteam/OpenWhistle-CNN
 ```
 
 Override it with `TRAIN_DATASET_SOURCE`. The value can be either a Hugging Face
@@ -65,7 +65,7 @@ for a CUDA version supported by the NVIDIA driver, or run the scripts with
 ## Example
 
 ```bash
-git clone https://github.com/OpenWhistleNeurIPS26/OpenWhistle.git
+git clone https://github.com/dolphinteam/OpenWhistle.git
 cd OpenWhistle
 python cnn/train.py
 ```
@@ -139,7 +139,7 @@ python cnn/create_sequences_whistles.py \
 By default, inference downloads and uses:
 
 ```bash
-OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16
+dolphinteam/OpenWhistle-CNN-VGG16
 ```
 
 Use `--checkpoint-path /path/to/model.pt` only when evaluating a local
@@ -151,8 +151,16 @@ Evaluate the published model on the test split only:
 python cnn/train.py --test-only --no-wandb-enabled
 ```
 
-This uses `OpenWhistleNeurIPS26/OpenWhistle-CNN` split `test` and downloads the
-default checkpoint from `OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16`.
+This uses `dolphinteam/OpenWhistle-CNN` split `test` and downloads the
+default checkpoint from `dolphinteam/OpenWhistle-CNN-VGG16`.
+
+The evaluation saves a window-level ROC curve in `figures/roc_validation_test.png`,
+its threshold/FPR/TPR points in `reports/test_roc_curve.csv`, and the exact
+ROC-AUC in `reports/roc_summary.json` and `reports/test_summary.json`.
+The positive class is whistle (label 1); the score is its softmax probability.
+The test set is balanced, with 8,354 whistle and 8,354 noise windows. These
+ROC values describe 0.4-second windows, not complete recordings or whistle
+events.
 
 Useful environment variables:
 
