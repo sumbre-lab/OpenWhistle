@@ -1,0 +1,3 @@
+model,best_C,test_macro_f1_pct,bootstrap_std_pct,test_accuracy_pct
+dolphinteam_OpenWhistle_Wav2Vec2.0,3.0,75.87678493853713,2.7111239253979256,76.69616519174042
+aves_bio_rerun,1.0,77.57603164193452,2.7343746232862216,77.87610619469027

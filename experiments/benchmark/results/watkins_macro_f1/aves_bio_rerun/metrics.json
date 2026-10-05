@@ -1,0 +1,71 @@
+{
+  "dataset": "watkins",
+  "model_name": "aves_bio_rerun",
+  "primary_metric": "macro_f1",
+  "selection_metric": "valid_macro_f1",
+  "best_C": 1.0,
+  "valid_macro_f1": 0.843547943721388,
+  "valid_accuracy": 0.8377581120943953,
+  "test_macro_f1": 0.7757603164193452,
+  "test_accuracy": 0.7787610619469026,
+  "n_total": 1695,
+  "n_classes": 31,
+  "n_train": 1017,
+  "n_valid": 339,
+  "n_test": 339,
+  "bootstrap": {
+    "count": 1000,
+    "seed": 42,
+    "sampling": "test clips, with replacement, unstratified",
+    "class_universe": [
+      "Atlantic_Spotted_Dolphin",
+      "Bearded_Seal",
+      "Beluga,_White_Whale",
+      "Bottlenose_Dolphin",
+      "Bowhead_Whale",
+      "Clymene_Dolphin",
+      "Common_Dolphin",
+      "False_Killer_Whale",
+      "Fin,_Finback_Whale",
+      "Frasers_Dolphin",
+      "Grampus,_Rissos_Dolphin",
+      "Harp_Seal",
+      "Humpback_Whale",
+      "Killer_Whale",
+      "Leopard_Seal",
+      "Long-Finned_Pilot_Whale",
+      "Melon_Headed_Whale",
+      "Minke_Whale",
+      "Narwhal",
+      "Northern_Right_Whale",
+      "Pantropical_Spotted_Dolphin",
+      "Ross_Seal",
+      "Rough-Toothed_Dolphin",
+      "Short-Finned_Pacific_Pilot_Whale",
+      "Southern_Right_Whale",
+      "Sperm_Whale",
+      "Spinner_Dolphin",
+      "Striped_Dolphin",
+      "Walrus",
+      "White-beaked_Dolphin",
+      "White-sided_Dolphin"
+    ],
+    "zero_division": 0,
+    "std_ddof": 0,
+    "mean": 0.7609114554947055,
+    "std": 0.027343746232862218,
+    "percentile_ci_95": [
+      0.7021436591222326,
+      0.8103805653986024
+    ]
+  },
+  "historical_accuracy_selection_recomputed": {
+    "best_C": 0.3,
+    "test_accuracy": 0.7846607669616519,
+    "test_macro_f1": 0.7816030857607731
+  },
+  "historical_comparison": {
+    "exact_match": true,
+    "differences": {}
+  }
+}

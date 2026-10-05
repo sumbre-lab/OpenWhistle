@@ -1,0 +1,68 @@
+{
+  "inputs_sha256": {
+    "embeddings.npy": "7bad97ed59392aa2b9d753d0fb3d8eb20d4347f82f341e3428de1ae7b749fbbc",
+    "embedding_index.csv": "eaaff69fa2322f7cc53f49058e37f8332a827484d41d983f23c5954b04bcc4a0"
+  },
+  "runner_sha256": "d5d3fae91c720912787f9c2290cf90f7dd91cc2cb157f4b41227c4b4b0c31167",
+  "python": "3.13.9",
+  "numpy": "2.3.5",
+  "pandas": "2.3.3",
+  "scipy": "1.16.3",
+  "scikit_learn": "1.7.2",
+  "thread_pools": [
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 2,
+      "prefix": "libscipy_openblas",
+      "filepath": "/home/pablo/anaconda3/lib/python3.13/site-packages/numpy.libs/libscipy_openblas64_-fdde5778.so",
+      "version": "0.3.30",
+      "threading_layer": "pthreads",
+      "architecture": "SkylakeX"
+    },
+    {
+      "user_api": "blas",
+      "internal_api": "mkl",
+      "num_threads": 2,
+      "prefix": "libmkl_rt",
+      "filepath": "/home/pablo/anaconda3/lib/libmkl_rt.so.2",
+      "version": "2025.0-Product",
+      "threading_layer": "gnu"
+    },
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 2,
+      "prefix": "libgomp",
+      "filepath": "/home/pablo/anaconda3/lib/libgomp.so.1.0.0",
+      "version": null
+    }
+  ],
+  "protocol": {
+    "C_grid": [
+      0.0001,
+      0.0003,
+      0.001,
+      0.003,
+      0.01,
+      0.03,
+      0.1,
+      0.3,
+      1.0,
+      3.0,
+      10.0,
+      30.0,
+      100.0
+    ],
+    "solver": "lbfgs",
+    "max_iter": 20000,
+    "class_weight": "balanced",
+    "random_state": 42,
+    "tol": 0.0001,
+    "standard_scaler_fit": "train",
+    "probe_fit": "train",
+    "refit_train_valid": false,
+    "tie_break": "first C in ascending grid",
+    "embedding_extraction": "external historical caches; not rerun by this script"
+  }
+}

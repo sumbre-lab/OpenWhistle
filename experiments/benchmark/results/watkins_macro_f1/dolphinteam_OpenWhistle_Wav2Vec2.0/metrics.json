@@ -1,0 +1,80 @@
+{
+  "dataset": "watkins",
+  "model_name": "dolphinteam_OpenWhistle_Wav2Vec2.0",
+  "primary_metric": "macro_f1",
+  "selection_metric": "valid_macro_f1",
+  "best_C": 3.0,
+  "valid_macro_f1": 0.8154313565722129,
+  "valid_accuracy": 0.8230088495575221,
+  "test_macro_f1": 0.7587678493853712,
+  "test_accuracy": 0.7669616519174042,
+  "n_total": 1695,
+  "n_classes": 31,
+  "n_train": 1017,
+  "n_valid": 339,
+  "n_test": 339,
+  "bootstrap": {
+    "count": 1000,
+    "seed": 42,
+    "sampling": "test clips, with replacement, unstratified",
+    "class_universe": [
+      "Atlantic_Spotted_Dolphin",
+      "Bearded_Seal",
+      "Beluga,_White_Whale",
+      "Bottlenose_Dolphin",
+      "Bowhead_Whale",
+      "Clymene_Dolphin",
+      "Common_Dolphin",
+      "False_Killer_Whale",
+      "Fin,_Finback_Whale",
+      "Frasers_Dolphin",
+      "Grampus,_Rissos_Dolphin",
+      "Harp_Seal",
+      "Humpback_Whale",
+      "Killer_Whale",
+      "Leopard_Seal",
+      "Long-Finned_Pilot_Whale",
+      "Melon_Headed_Whale",
+      "Minke_Whale",
+      "Narwhal",
+      "Northern_Right_Whale",
+      "Pantropical_Spotted_Dolphin",
+      "Ross_Seal",
+      "Rough-Toothed_Dolphin",
+      "Short-Finned_Pacific_Pilot_Whale",
+      "Southern_Right_Whale",
+      "Sperm_Whale",
+      "Spinner_Dolphin",
+      "Striped_Dolphin",
+      "Walrus",
+      "White-beaked_Dolphin",
+      "White-sided_Dolphin"
+    ],
+    "zero_division": 0,
+    "std_ddof": 0,
+    "mean": 0.7472820770505932,
+    "std": 0.027111239253979257,
+    "percentile_ci_95": [
+      0.6940957717608619,
+      0.7960999617431757
+    ]
+  },
+  "historical_accuracy_selection_recomputed": {
+    "best_C": 3.0,
+    "test_accuracy": 0.7669616519174042,
+    "test_macro_f1": 0.7587678493853712
+  },
+  "historical_comparison": {
+    "exact_match": false,
+    "differences": {
+      "test_accuracy": {
+        "recomputed": 0.7669616519174042,
+        "recorded": 0.7699115044247787
+      },
+      "test_macro_f1": {
+        "recomputed": 0.7587678493853712,
+        "recorded": 0.7608195092210424
+      }
+    }
+  }
+}

@@ -29,6 +29,10 @@ Shared preprocessing: embeddings are optionally **standardized** (`StandardScale
 
 ## Metrics
 
+For the separate Watkins/BEANS transfer experiment, see [WATKINS.md](WATKINS.md).
+Its cached probe uses validation macro-F1 selection and documents the historical
+accuracy discrepancy, exact splits, uncertainty and remaining extraction work.
+
 | Setting | Primary metric | Notes |
 |--------|----------------|--------|
 | **Classification** | **Macro-F1** | Unweighted mean of the per-class F1 scores on the held-out test split. |
