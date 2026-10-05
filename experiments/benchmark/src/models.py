@@ -1,4 +1,6 @@
 import io
+import json
+import tempfile
 import librosa
 import numpy as np
 import soundfile as sf
@@ -249,6 +251,7 @@ class Aves:
         )
         self.sample_rate = sample_rate
         self.feature_mode = hf_feature_mode
+        self.mixed_precision = False
         self.audio_executor = (
             ThreadPoolExecutor(
                 max_workers=audio_workers,
@@ -335,6 +338,40 @@ class Aves:
             .mean(dim=1)
             .squeeze()
         )
+
+class HuggingFaceAvesBackbone(Aves):
+    """Load a versioned native AVES export without modifying the Hub cache."""
+
+    def __init__(self, hf_model_id, hf_sample_rate=None, **kwargs):
+        from huggingface_hub import hf_hub_download
+        from hf_collection_models import AVES_SCRATCH_MODELS
+
+        specifications = {model["model_id"]: model for model in AVES_SCRATCH_MODELS}
+        if hf_model_id not in specifications:
+            raise ValueError(f"Unknown native AVES export: {hf_model_id}")
+        spec = specifications[hf_model_id]
+        if hf_sample_rate is not None and hf_sample_rate != spec["sample_rate"]:
+            raise ValueError("Native OpenWhistle AVES exports require 44100 Hz")
+        model_path = hf_hub_download(repo_id=hf_model_id, revision=spec["revision"],
+                                     filename=spec["model_filename"])
+        config_path = hf_hub_download(repo_id=hf_model_id, revision=spec["revision"],
+                                      filename=spec["config_filename"])
+        config = json.loads(Path(config_path).read_text())
+        if config.pop("sample_rate", spec["sample_rate"]) != spec["sample_rate"]:
+            raise ValueError("Native AVES config has an unexpected sample rate")
+        # TorchAudio's constructor rejects sample_rate metadata. Never rewrite
+        # a downloaded symlink, as that would corrupt the shared Hub blob.
+        self._config_directory = tempfile.TemporaryDirectory(prefix="openwhistle-aves-")
+        normalized_path = Path(self._config_directory.name) / "model_config.json"
+        normalized_path.write_text(json.dumps(config))
+        kwargs.pop("sample_rate", None)
+        kwargs.pop("aves_model_path", None)
+        kwargs.pop("aves_config_path", None)
+        super().__init__(aves_model_path=model_path, aves_config_path=str(normalized_path),
+                         sample_rate=spec["sample_rate"], **kwargs)
+        self.model_id = hf_model_id
+        self.revision = spec["revision"]
+
 
 class Dolph2Vec:
     def __init__(self, dolph2vec_model_path: str, dolph2vec_config_path: str, sample_rate: int = 44100, *args, **kwargs):

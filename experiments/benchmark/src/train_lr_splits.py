@@ -26,6 +26,7 @@ from models import (
     BioLingual,
     Dolph2Vec,
     HuggingFaceAudioBackbone,
+    HuggingFaceAvesBackbone,
     SpectralFeatures,
     Spectrogram,
 )
@@ -495,6 +496,7 @@ def main():
         "biolingual": BioLingual,
         "dolph2vec": Dolph2Vec,
         "hf": HuggingFaceAudioBackbone,
+        "aves_hf": HuggingFaceAvesBackbone,
         "mfcc": MFCC,
         "spectrogram": Spectrogram,
         "spectral_features": SpectralFeatures,
@@ -525,8 +527,8 @@ def main():
     model_args["aves_model_path"] = aves_model_path
     model_args["aves_config_path"] = aves_config_path
 
-    if args.model == "hf" and not args.hf_model_id:
-        raise ValueError("--hf_model_id is required when --model hf is used.")
+    if args.model in {"hf", "aves_hf"} and not args.hf_model_id:
+        raise ValueError("--hf_model_id is required for a Hugging Face backbone.")
     model = name2model[args.model](**model_args)
 
     if args.dataset_name == "detection":
@@ -539,6 +541,8 @@ def main():
         dataset, _ = load_classification_splits(config_name=dataset_config)
 
     resolved_model_id = args.hf_model_id or args.model
+    if args.model == "aves_hf":
+        resolved_model_id = f"{resolved_model_id}__aves_hf__{model.revision}"
     if args.hf_feature_mode != "standard":
         resolved_model_id = f"{resolved_model_id}__{args.hf_feature_mode}"
     x_train, y_train = embed_or_load_split(
@@ -679,7 +683,7 @@ def main():
                 "num_bootstrap": args.num_bootstrap,
                 "normalize_data": args.normalize_data,
                 "embedding_batch_size": args.embedding_batch_size,
-                "mixed_precision": args.mixed_precision,
+                "mixed_precision": getattr(model, "mixed_precision", args.mixed_precision),
                 "amp_dtype": args.amp_dtype,
                 "feature_mode": getattr(model, "feature_mode", "standard"),
                 "embedding_pipeline_version": EMBEDDING_PIPELINE_VERSION,

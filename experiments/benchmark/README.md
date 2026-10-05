@@ -119,6 +119,13 @@ embedding.
 Results are written to `results/hf_collections_benchmark.csv`; the Markdown
 and LaTeX tables are rebuilt automatically after all evaluations finish.
 
+The frozen collection includes native AVES Stage-1/Stage-2 exports alongside
+Transformers checkpoints. For the exact AVES from-scratch and Wav2Vec2
+10/50/100% checkpoint mapping, table and commands, see [PRETRAINING.md](PRETRAINING.md).
+`--collection rebuttal_pretraining --classification_configs all` selects the
+five pretraining checkpoints used in the rebuttal; the native AVES exports use
+their own loader and are excluded from Transformers supervised fine-tuning.
+
 ## Outputs
 
 - Appended lines under **`results/`**, mainly **`results_classification.txt`** and **`results_detection.txt`**, from `train_lr_splits.py`.

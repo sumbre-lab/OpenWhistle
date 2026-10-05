@@ -106,16 +106,30 @@ et jobs SLURM. Elles nécessitent une adaptation des chemins et une version
 explicite des dépendances externes. Ne pas copier tout le dossier, qui contient
 aussi des poids et des expériences sans rapport avec le rebuttal.
 
-Les deux checkpoints AVES Stage-1/Stage-2 figurent déjà dans le CSV importé,
-mais sont absents de `HF_COLLECTION_MODELS`. Le Stage-2-320 reproduit les
-valeurs enregistrées 61,26 F1 / 76,18 mAP du modèle from-scratch. Le runner
-de collection et le générateur de table actuels l'omettent. Le checkpoint
+Les deux checkpoints AVES Stage-1/Stage-2 figurent dans le CSV importé et
+sont désormais inclus dans `FROZEN_COLLECTION_MODELS`, avec un loader natif
+TorchAudio et des révisions fixées. Ils restent hors de la liste Transformers
+utilisée pour le fine-tuning. Le Stage-2-320 correspond aux valeurs enregistrées
+61,26 F1 / 76,18 mAP du modèle from-scratch. Le checkpoint
 BTB3 100 % correspond aux valeurs 63,53 / 73,93 du modèle continu.
 
 Pour l'ablation Wav2Vec2, le checkpoint étiqueté stride960 100 % dans la
 collection donne 60,57 F1 ; le résultat 64,37 provient de
 `dolphinteam/OpenWhistle-Wav2Vec2.0`. La recette de table doit préciser ce
 choix et ne pas confondre les deux variantes.
+
+La table `rebuttal_pretraining.md` et le preset `--collection rebuttal_pretraining`
+font désormais ce choix explicitement. Les valeurs 22,65 / 56,53 / 64,37 du
+rebuttal sont retrouvées dans le CSV, sans nouvel entraînement. Un smoke test
+CPU du loader AVES avec les vrais poids Stage-2 passe ; le SHA-256 de ces poids
+correspond à celui déclaré par le Hub. L'accès Hub vérifié le 5 octobre montre
+que les AVES natifs et Wav2Vec2 d'ablation sont privés ; seul le checkpoint
+Wav2Vec2 principal est public parmi les six vérifiés.
+
+Le config du Wav2Vec2 principal contient une référence `checkpoint-182000`,
+alors que le preprint décrit 400k steps : retrouver le trainer state et la
+règle de sélection avant de conclure sur ce décalage. Voir
+`experiments/benchmark/PRETRAINING.md` et `docs/pretraining-checkpoints.json`.
 
 Les scripts `prepare_stage1_fraction.py` et
 `prepare_btb3_fraction_data.py` sélectionnent un préfixe de manifests ;

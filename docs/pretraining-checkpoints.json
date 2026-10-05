@@ -1,0 +1,211 @@
+{
+  "checked_on": "2026-10-05",
+  "metadata_source": "Authenticated read-only Hugging Face model_info and existing local snapshot configs",
+  "scores_source": "experiments/benchmark/results/hf_collections_benchmark.csv",
+  "scores_source_sha256": "328e09cd4948be447ef1e93e172254b3913227d4670026f9f9f9fcdddfc63b0f",
+  "historical_score_revisions_verified": false,
+  "note": "Historical CSV does not record model revisions. Observed revisions and hashes establish artifact identity today, not exact revisions used by historical evaluations. No visibility was changed.",
+  "models": [
+    {
+      "model_id": "dolphinteam/AVES-OpenWhistle-Stage-1-960-100pct",
+      "observed_hub_revision": "4e2c4c4131c249ddef7f00bd3612d90c84a4029f",
+      "private": true,
+      "format": "torchaudio",
+      "config_filename": "config/openwhistle-aves-base-stage1-960.torchaudio.model_config.json",
+      "config_sha256": "a733929fcb115bd7c3b4200ee815c3540050d9a4d12b13b1120e0fa947fe6b78",
+      "weights_filename": "models/openwhistle-aves-base-stage1-960.torchaudio.pt",
+      "weights_sha256": "b944228d387dbe560a7bdf3d80a82a6b458fe7b24952e322af8ac7ea38db1588",
+      "sample_rate": 44100,
+      "conv_stride": [
+        15,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "total_stride": 960,
+      "encoder_layers": 12,
+      "hidden_size": 768
+    },
+    {
+      "model_id": "dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct",
+      "observed_hub_revision": "961e814923251f346f818440fb2e7883cd1331b1",
+      "private": true,
+      "format": "torchaudio",
+      "config_filename": "config/openwhistle-aves-base-stage2.torchaudio.model_config.json",
+      "config_sha256": "0cbf6fe27794cc5dcac298faef59f2c76c317602cabb457a65df2400a69c778f",
+      "weights_filename": "models/openwhistle-aves-base-stage2.torchaudio.pt",
+      "weights_sha256": "aacb6b474be576c2340879a43e841a83574cd6b43f1d610fc56fcf877e74fe15",
+      "sample_rate": 44100,
+      "conv_stride": [
+        5,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "total_stride": 320,
+      "encoder_layers": 12,
+      "hidden_size": 768
+    },
+    {
+      "model_id": "dolphinteam/wav2vec2-44k-stride960-10pct-40k",
+      "observed_hub_revision": "fd1c0517ef0de8538a4098a077865f889843c487",
+      "cached_config_revision": "fd1c0517ef0de8538a4098a077865f889843c487",
+      "private": true,
+      "format": "transformers",
+      "config_sha256": "93cad5ce474677d9521140e26d614cf54e9e3cf1f3c759bec19e3313bc6f7df1",
+      "preprocessor_sha256": "21e209450d26f7335ae9f2f73113ae8d38d4293992b20862eaf68ccb370157ec",
+      "weights_filename": "model.safetensors",
+      "weights_sha256": "b35b76819ad92306794509caf093d92f6ea329cef9573da179bed232da013aaa",
+      "cached_weights_match_hub_hash": true,
+      "sample_rate": 44100,
+      "conv_stride": [
+        15,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "conv_kernel": [
+        30,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2
+      ],
+      "total_stride": 960,
+      "encoder_layers": 12,
+      "hidden_size": 768,
+      "source_checkpoint_reference": null
+    },
+    {
+      "model_id": "dolphinteam/wav2vec2-44k-stride960-50pct-200k",
+      "observed_hub_revision": "d0aaa4abacca625718c9cd5da263a6f0b02f10bc",
+      "cached_config_revision": "d0aaa4abacca625718c9cd5da263a6f0b02f10bc",
+      "private": true,
+      "format": "transformers",
+      "config_sha256": "93cad5ce474677d9521140e26d614cf54e9e3cf1f3c759bec19e3313bc6f7df1",
+      "preprocessor_sha256": "21e209450d26f7335ae9f2f73113ae8d38d4293992b20862eaf68ccb370157ec",
+      "weights_filename": "model.safetensors",
+      "weights_sha256": "43652ccefbf2d3d2020b0525946f3c0a4393a12e6f6cfd64c1ff951e5f682225",
+      "cached_weights_match_hub_hash": true,
+      "sample_rate": 44100,
+      "conv_stride": [
+        15,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "conv_kernel": [
+        30,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2
+      ],
+      "total_stride": 960,
+      "encoder_layers": 12,
+      "hidden_size": 768,
+      "source_checkpoint_reference": null
+    },
+    {
+      "model_id": "dolphinteam/wav2vec2-44k-stride960-transformers",
+      "observed_hub_revision": "8cfe0658562bb9313da60008d4d018e5a0183c7a",
+      "cached_config_revision": "8cfe0658562bb9313da60008d4d018e5a0183c7a",
+      "private": true,
+      "format": "transformers",
+      "config_sha256": "93cad5ce474677d9521140e26d614cf54e9e3cf1f3c759bec19e3313bc6f7df1",
+      "preprocessor_sha256": "21e209450d26f7335ae9f2f73113ae8d38d4293992b20862eaf68ccb370157ec",
+      "weights_filename": "model.safetensors",
+      "weights_sha256": "11cc046ed2d96d2b82546c3d9ed94fb67e0fa72450d069d67b13d67179352726",
+      "cached_weights_match_hub_hash": true,
+      "sample_rate": 44100,
+      "conv_stride": [
+        15,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "conv_kernel": [
+        30,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2
+      ],
+      "total_stride": 960,
+      "encoder_layers": 12,
+      "hidden_size": 768,
+      "source_checkpoint_reference": null
+    },
+    {
+      "model_id": "dolphinteam/OpenWhistle-Wav2Vec2.0",
+      "observed_hub_revision": "985ac11bc6939af5e41383143aad5a0ae6993f68",
+      "cached_config_revision": "ceb20d7d01d92130c18641be0aef14e59d544284",
+      "private": false,
+      "format": "transformers",
+      "config_sha256": "4ccd6641044e47cf02699d301a5a8566bf88e5b837c37d5d8331be40368fef76",
+      "preprocessor_sha256": "885ff2ee28da993bdce74c40f949da0ba03cc70c45b404cf601c90c459f839fd",
+      "weights_filename": "model.safetensors",
+      "weights_sha256": "0f7f26284cef214d39aca72021edfdc70af10b062ce610665dd4d68946259fa9",
+      "cached_weights_match_hub_hash": true,
+      "sample_rate": 44100,
+      "conv_stride": [
+        15,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "conv_kernel": [
+        30,
+        3,
+        3,
+        3,
+        3,
+        2,
+        2
+      ],
+      "total_stride": 960,
+      "encoder_layers": 12,
+      "hidden_size": 768,
+      "source_checkpoint_reference": "checkpoint-182000"
+    }
+  ],
+  "stage2_cpu_smoke": {
+    "real_weights_sha256": "aacb6b474be576c2340879a43e841a83574cd6b43f1d610fc56fcf877e74fe15",
+    "input": "synthetic 0.5-second 10kHz sine at 44100Hz",
+    "single_shape": [
+      768
+    ],
+    "batch_shape": [
+      2,
+      768
+    ],
+    "dtype": "float32",
+    "finite": true,
+    "local_weights_used": true,
+    "full_dataset_evaluation": false
+  }
+}

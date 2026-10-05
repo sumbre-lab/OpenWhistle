@@ -9,12 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from hf_collection_models import HF_COLLECTION_MODELS
+from hf_collection_models import FROZEN_COLLECTION_MODELS, REBUTTAL_PRETRAINING_MODELS
 from pipeline_config import EMBEDDING_PIPELINE_VERSION
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--collection", choices=("all", "rebuttal_pretraining"), default="all",
+                        help="Select the full frozen collection or exact rebuttal pretraining checkpoints.")
     parser.add_argument(
         "--datasets",
         nargs="+",
@@ -103,7 +105,7 @@ def main():
     selected_ids = set(args.model_ids) if args.model_ids else None
     models = [
         model
-        for model in HF_COLLECTION_MODELS
+        for model in (REBUTTAL_PRETRAINING_MODELS if args.collection == "rebuttal_pretraining" else FROZEN_COLLECTION_MODELS)
         if selected_ids is None or model["model_id"] in selected_ids
     ]
     if selected_ids is not None:
@@ -139,7 +141,7 @@ def main():
                 sys.executable,
                 str(train_script),
                 "--model",
-                "hf",
+                model.get("backend", "hf"),
                 "--hf_model_id",
                 model["model_id"],
                 "--model_label",

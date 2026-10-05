@@ -7,13 +7,14 @@ import argparse
 import csv
 from pathlib import Path
 
-from hf_collection_models import HF_COLLECTION_MODELS
+from hf_collection_models import FROZEN_COLLECTION_MODELS, REBUTTAL_PRETRAINING_MODELS
 from pipeline_config import EMBEDDING_PIPELINE_VERSION
 
 
 def parse_args():
     benchmark_root = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser()
+    parser.add_argument("--table", choices=("collection", "pretraining"), default="collection")
     parser.add_argument(
         "--results_csv",
         type=Path,
@@ -22,14 +23,18 @@ def parse_args():
     parser.add_argument(
         "--markdown",
         type=Path,
-        default=benchmark_root / "results" / "hf_collections_benchmark.md",
+        default=None,
     )
     parser.add_argument(
         "--latex",
         type=Path,
-        default=benchmark_root / "results" / "hf_collections_benchmark.tex",
+        default=None,
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    basename = "rebuttal_pretraining" if args.table == "pretraining" else "hf_collections_benchmark"
+    args.markdown = args.markdown or benchmark_root / "results" / f"{basename}.md"
+    args.latex = args.latex or benchmark_root / "results" / f"{basename}.tex"
+    return args
 
 
 def formatted_score(row: dict[str, str] | None) -> str:
@@ -48,6 +53,7 @@ def main():
             for row in csv.DictReader(result_file)
             if row.get("embedding_pipeline_version")
             == EMBEDDING_PIPELINE_VERSION
+            and row.get("metric") == ("Macro-F1" if row["dataset_name"] == "classification" else "mAP")
         ]
     by_pair = {
         (
@@ -59,7 +65,7 @@ def main():
     }
 
     table_rows = []
-    for model in HF_COLLECTION_MODELS:
+    for model in (REBUTTAL_PRETRAINING_MODELS if args.table == "pretraining" else FROZEN_COLLECTION_MODELS):
         table_rows.append(
             (
                 model["label"],
@@ -102,7 +108,25 @@ def main():
         "",
     ]
 
+    if args.table == "pretraining":
+        markdown_lines = [
+            "| Frozen backbone | Macro-F1 all ↑ | Detection mAP ↑ |",
+            "|---|---:|---:|",
+            *[f"| {label} | {all_score} | {detection} |"
+              for label, _, _, all_score, detection in table_rows],
+            "",
+        ]
+        latex_lines = [
+            r"\begin{tabular}{lcc}", r"\toprule",
+            r"Frozen backbone & All F1 $\uparrow$ & Detection mAP $\uparrow$ \\",
+            r"\midrule",
+            *[f"{label.replace('%', r'\%')} & {all_score} & {detection} \\\\"
+              for label, _, _, all_score, detection in table_rows],
+            r"\bottomrule", r"\end{tabular}", "",
+        ]
+
     args.markdown.parent.mkdir(parents=True, exist_ok=True)
+    args.latex.parent.mkdir(parents=True, exist_ok=True)
     args.markdown.write_text("\n".join(markdown_lines))
     args.latex.write_text("\n".join(latex_lines))
     print(f"Saved {args.markdown}")
