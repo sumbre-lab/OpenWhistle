@@ -15,7 +15,10 @@ Recomputed on 2026-10-05, using 1,695 clips and 31 classes:
 
 These are **new probe results on existing embeddings**, not a reproduction of
 audio extraction or a guarantee that the caches use the final intended model
-and preprocessing. The old JSON files are preserved as `historical_metrics.json`.
+and preprocessing. The old `historical_metrics.json` files and regenerable
+`bootstrap.csv` samples were moved to the local archive during repository
+organization. Current metrics, predictions, manifests and provenance remain
+versioned; see [results organization](../../docs/results-organization.md).
 With accuracy selection in this environment, AVES reproduces its old metrics
 exactly. Wav2Vec2 selects the same C=3 but differs by one correct test prediction
 (76.6962% versus 76.9912% accuracy; 75.8768% versus 76.0820% macro-F1).

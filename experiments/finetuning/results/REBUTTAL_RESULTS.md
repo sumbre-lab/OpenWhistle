@@ -3,17 +3,9 @@
 Only the values in this file and the source files named below should be used for
 the rebuttal. Percentages are reported as mean ± standard deviation.
 
-## Historical linear-probing baseline
-
-Source: `experiments/benchmark/results/rebuttal_linear_probing.csv`.
-
-| Model | Classification balanced (Accuracy) | Detection (mAP) |
-| --- | ---: | ---: |
-| AVES-Core | 68.0 ± 2.2 | 57.4 ± 2.1 |
-| BioLingual | 71.3 ± 2.1 | 66.5 ± 2.2 |
-| AVES-Bio | 75.1 ± 2.1 | 65.0 ± 2.3 |
-
-These historical classification values are Accuracy, not Macro-F1.
+Historical accuracy-selected linear-probing reports are kept in the local
+archive described in [results organization](../../../docs/results-organization.md).
+They must not be mixed into a macro-F1 table.
 
 ## Linear-probing classification baseline in Macro-F1
 
@@ -37,6 +29,7 @@ BioLingual audio is processed at 48 kHz even though the CSV currently records
 
 Classification source:
 `experiments/finetuning/results/classification_v2/<model>/<config>/seed_<seed>/results.json`.
+Wav2Vec2 source: `experiments/finetuning/results/wav2vec2_ow/all/seed_<seed>/results.json`.
 Each result below uses seeds 42, 43, and 44; its standard deviation is computed
 across those three fine-tuning runs.
 
@@ -51,24 +44,27 @@ across those three fine-tuning runs.
 | AVES-Bio | balanced | 79.70 ± 0.68 | 79.60 ± 0.62 |
 | AVES-Bio | unbalanced | 75.84 ± 0.80 | 62.06 ± 0.89 |
 | AVES-Bio | all | 79.65 ± 0.91 | 59.54 ± 1.05 |
+| Wav2Vec2 OpenWhistle | all | 82.58 ± 0.56 | 62.82 ± 0.40 |
 
 Detection sources:
 
 - `experiments/finetuning/results/aves_core/detection_map`
 - `experiments/finetuning/results/biolingual/detection_map_b8_lr1e5`
 - `experiments/finetuning/results/aves_bio/detection_map`
+- `experiments/finetuning/results/wav2vec2_ow/detection`
 
 | Model | Detection (mAP) |
 | --- | ---: |
 | AVES-Core | 74.10 ± 1.26 |
 | BioLingual | 72.26 ± 0.44 |
 | AVES-Bio | 77.02 ± 1.31 |
+| Wav2Vec2 OpenWhistle | 82.27 ± 0.37 |
 
 ## Fine-tuning protocol
 
 The encoder and dropout-linear classification head were optimized end-to-end.
 The classification head has 6 outputs for `balanced` and 10 outputs for
-`unbalanced`/`all`; the detection head has 7 outputs. Classification used a
+`unbalanced`/`all`; the detection head has 7 outputs. AVES/BioLingual classification used a
 batch size of 32, up to 50 epochs, patience 15, and three seeds. Encoder
 learning rates were 1e-5 for AVES-Core/AVES-Bio and 5e-6 for BioLingual; the
 head learning rate was 1e-4.

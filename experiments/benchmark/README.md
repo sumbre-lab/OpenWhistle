@@ -165,8 +165,8 @@ The ROC comparison reads previously exported test predictions from
 exports before plotting.
 
 Historical F1/accuracy, open-set, and UMAP results imported from feature branches
-are preserved separately from the structured v5 rebuttal tables. See the
-[branch review](../../docs/camera-ready-review.md) for provenance.
+are archived locally. See [results organization](../../docs/results-organization.md)
+for retrieval and the [branch review](../../docs/camera-ready-review.md) for provenance.
 
 The former `faadil/F1` pretraining-size entry point is available as
 `bash experiments/benchmark/run_pretrain_variants.sh`. It uses the shared Hub

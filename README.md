@@ -61,6 +61,10 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 
 ## Repository layout
 
+Start with the [repository guide](docs/START_HERE.md) to find the relevant code,
+result summaries and provenance checks. The [benchmark result index](experiments/benchmark/results/README.md)
+distinguishes reference tables, detailed reports and historical outputs.
+
 ```text
 .
 ├── cnn/                    # CNN whistle presence detection and segmentation

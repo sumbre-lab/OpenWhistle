@@ -110,3 +110,20 @@ datasets_figures/data/inter_detected_whistle_intervals.csv
 experiments/benchmark/checkpoints/
 experiments/benchmark/results/embedding_cache/
 experiments/pretraining/artifacts/
+
+# Intermediate/historical outputs archived locally during camera-ready cleanup.
+# Manuscript tables, per-seed summaries and figure source data remain tracked.
+experiments/benchmark/results/results_*.txt
+experiments/benchmark/results/linear_parts/
+experiments/benchmark/results/pr_curves/
+experiments/benchmark/results/hf_collections_benchmark.md
+experiments/benchmark/results/hf_collections_benchmark.tex
+experiments/benchmark/results/rebuttal_linear_probing.csv
+experiments/benchmark/results/umap_dolph2vec_classification.png
+experiments/benchmark/results/roc_curves/*/roc_detection.*
+experiments/benchmark/results/roc_curves/dolphinteam__OpenWhistle-Wav2Vec2.0/
+experiments/benchmark/results/watkins_macro_f1/*/bootstrap.csv
+experiments/benchmark/results/watkins_macro_f1/*/historical_metrics.json
+experiments/finetuning/results/hf_collection/
+cnn/rebuttal/results/fraction_*/seed_*/figures/
+cnn/rebuttal/results/fraction_*/seed_*/reports/*.csv
