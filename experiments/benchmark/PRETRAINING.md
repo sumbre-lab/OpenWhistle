@@ -104,6 +104,11 @@ the config alone cannot establish which explanation is correct. Locate the
 source checkpoint/trainer state and document the actual selection rule before
 claiming the final training recipe is reproduced.
 
+Update, 2026-10-07: SSH verification found identical main-model weights on
+Jean Zay, with `trainer_state.json` reporting **191,000 completed steps** and
+400,000 planned steps. The 10% and 50% weights match exports from a separate
+Fairseq pipeline. See the [cluster verification](../../docs/jeanzay-pretraining-verification.md).
+
 The AVES recipe must likewise include its MFCC and Stage-2 HuBERT pseudo-label
 generation and the exact checkpoint selection. The local Stage-2 model card
 identifies `checkpoint_best.pt`, not the final 100k-update checkpoint. Its old

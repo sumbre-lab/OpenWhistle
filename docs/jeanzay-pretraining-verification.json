@@ -1,0 +1,169 @@
+{
+  "checked_on": "2026-10-07",
+  "cluster_reads_only": true,
+  "no_jobs_submitted": true,
+  "target_branch": "camera-ready/pablo",
+  "cluster_openwhistle_git_head": "e432f97eceda14cc0ae569dc4ba9f9db408729a6",
+  "cluster_openwhistle_branch": "pablo/main",
+  "current_source_comparisons": [
+    {
+      "file": "ANNpretraining/__init__.py",
+      "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cluster_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/runtime.py",
+      "local_sha256": "8debf31d7d2c8cf1da3922c21e4c230c62d01ce21ecb31e915b726afc2493215",
+      "cluster_sha256": "8debf31d7d2c8cf1da3922c21e4c230c62d01ce21ecb31e915b726afc2493215",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/pretraining/checkpoint_utils.py",
+      "local_sha256": "c5d61b44144c0661719bab6eb76477db0cb0a89de68843375fa0063a07f131d0",
+      "cluster_sha256": "c5d61b44144c0661719bab6eb76477db0cb0a89de68843375fa0063a07f131d0",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/pretraining/trainers.py",
+      "local_sha256": "58dc01bd056f71e5c66b8e1e829a21a09366ade7be039fca9fc9c0c712eca188",
+      "cluster_sha256": "58dc01bd056f71e5c66b8e1e829a21a09366ade7be039fca9fc9c0c712eca188",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/pretraining/__init__.py",
+      "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cluster_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/pretraining/trainloop.py",
+      "local_sha256": "3d86f4bcf3c52a071b5e671767235a535332b6c679bc49ca68e6aa243d2621f2",
+      "cluster_sha256": "3d86f4bcf3c52a071b5e671767235a535332b6c679bc49ca68e6aa243d2621f2",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/pretraining/callbacks.py",
+      "local_sha256": "e1437e4542746a0b9c45a557f0257649b9131cea63d9aa85d2dda5e93bf095d5",
+      "cluster_sha256": "e1437e4542746a0b9c45a557f0257649b9131cea63d9aa85d2dda5e93bf095d5",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/pretraining/submit_dolphin.py",
+      "local_sha256": "d59e5f38c65dc054c594860073ece2b2d5f8e1a2b44ff057265062271b6da7c5",
+      "cluster_sha256": "5104bf2ea74fd276f954d0117ccc82597519f878a80b208217beea27025a8bb3",
+      "identical": false
+    },
+    {
+      "file": "ANNpretraining/models/api.py",
+      "local_sha256": "8d1b91fdb73f5abc8f964486f1c41f2f76591dab03b298663116e026e0dc02bb",
+      "cluster_sha256": "8d1b91fdb73f5abc8f964486f1c41f2f76591dab03b298663116e026e0dc02bb",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/__init__.py",
+      "local_sha256": "29f6950e93f09d72d897b610591ae7a017d2498edd3aff0e50c15dfb58a5c9c2",
+      "cluster_sha256": "29f6950e93f09d72d897b610591ae7a017d2498edd3aff0e50c15dfb58a5c9c2",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/with_grad_mult.py",
+      "local_sha256": "56122cc3ae5bfbd7fe1c219873a38551af5a2eb7eeb614122bfd89a288dd0da9",
+      "cluster_sha256": "56122cc3ae5bfbd7fe1c219873a38551af5a2eb7eeb614122bfd89a288dd0da9",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/__init__.py",
+      "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cluster_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/efficientEncoder.py",
+      "local_sha256": "b7af3c68c6ddbba84d6c69498857cf0a8f4400354e019756b5fa795fcea8af73",
+      "cluster_sha256": "b7af3c68c6ddbba84d6c69498857cf0a8f4400354e019756b5fa795fcea8af73",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/forPreTraining.py",
+      "local_sha256": "c8720a0e5af5ae63767174d45969b8ac35b499ae4de9426b4044504734a01e10",
+      "cluster_sha256": "c8720a0e5af5ae63767174d45969b8ac35b499ae4de9426b4044504734a01e10",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/utils_data.py",
+      "local_sha256": "f697391055c33c75f5b7f4185006d87d54c77e0ad6bfd53d2908c3a07953a351",
+      "cluster_sha256": "f697391055c33c75f5b7f4185006d87d54c77e0ad6bfd53d2908c3a07953a351",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/wav2vec_fastattention.py",
+      "local_sha256": "38feba4e996dd55e1638f193563dc9de54cf264a9311e7111ddd04d5d9ce632d",
+      "cluster_sha256": "38feba4e996dd55e1638f193563dc9de54cf264a9311e7111ddd04d5d9ce632d",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/config/config_dolphin.json",
+      "local_sha256": "c391beb2a3d5658743d45f64378f461efb806a2869ac131b2f29d69dd6bd3e96",
+      "cluster_sha256": "c391beb2a3d5658743d45f64378f461efb806a2869ac131b2f29d69dd6bd3e96",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/config/trainingArg.yaml",
+      "local_sha256": "4af3efacbed32154447402f40b42943f3476e58536a98b6553d05be30e6eb0b1",
+      "cluster_sha256": "4af3efacbed32154447402f40b42943f3476e58536a98b6553d05be30e6eb0b1",
+      "identical": true
+    },
+    {
+      "file": "ANNpretraining/models/wav2vec2/config/preprocessor_dolphin.json",
+      "local_sha256": "885ff2ee28da993bdce74c40f949da0ba03cc70c45b404cf601c90c459f839fd",
+      "cluster_sha256": "885ff2ee28da993bdce74c40f949da0ba03cc70c45b404cf601c90c459f839fd",
+      "identical": true
+    }
+  ],
+  "main_checkpoint": {
+    "model_id": "dolphinteam/OpenWhistle-Wav2Vec2.0",
+    "cluster_source": "/lustre/fswork/projects/rech/ioc/commun/model-dolph2vec_type-base_data-DolphinChat_version-v0",
+    "weights_sha256": "0f7f26284cef214d39aca72021edfdc70af10b062ce610665dd4d68946259fa9",
+    "matches_hub": true,
+    "global_step": 191000,
+    "max_steps": 400000,
+    "saved_training_parameters": {
+      "max_steps": 400000,
+      "per_device_train_batch_size": 4,
+      "gradient_accumulation_steps": 2,
+      "learning_rate": 0.0005,
+      "warmup_steps": 32000,
+      "weight_decay": 0.01,
+      "fp16": true,
+      "bf16": false,
+      "seed": 42,
+      "lr_scheduler_type": "linear",
+      "optim": "adamw_torch",
+      "recorded_num_processes": 32
+    },
+    "effective_batch_size": 256
+  },
+  "ablation_exports": [
+    {
+      "model_id": "dolphinteam/wav2vec2-44k-stride960-50pct-200k",
+      "cluster_export": "/lustre/fswork/projects/rech/ioc/commun/Wav2Vec2.0/outputs/hf_exports/wav2vec2-44k-stride960-50pct-200k",
+      "weights_sha256": "43652ccefbf2d3d2020b0525946f3c0a4393a12e6f6cfd64c1ff951e5f682225",
+      "matches_hub": true,
+      "pipeline": "Fairseq; source absent from current OpenWhistle pretraining tree"
+    },
+    {
+      "model_id": "dolphinteam/wav2vec2-44k-stride960-10pct-40k",
+      "cluster_export": "/lustre/fswork/projects/rech/ioc/commun/Wav2Vec2.0/outputs/hf_exports/wav2vec2-44k-stride960-10pct-40k",
+      "weights_sha256": "b35b76819ad92306794509caf093d92f6ea329cef9573da179bed232da013aaa",
+      "matches_hub": true,
+      "pipeline": "Fairseq; source absent from current OpenWhistle pretraining tree"
+    }
+  ],
+  "limits": [
+    "Hash comparisons use the authenticated Hub weight metadata verified on 2026-10-05 and matching cached local artifacts; no Hub writes performed.",
+    "Current cluster source equality does not establish the historical source revision used by the matched main checkpoint.",
+    "The older Dolph2Vec source tree differs from the current OpenWhistle tree.",
+    "The exact Fairseq checkpoint selection and complete training logs have not been audited."
+  ]
+}

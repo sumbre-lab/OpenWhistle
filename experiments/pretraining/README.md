@@ -1,5 +1,12 @@
 # Wav2Vec2.0 Pretraining
 
+Verification against Jean Zay on 2026-10-07: this is the Transformers pipeline
+for the main model family. The 10% and 50% rebuttal checkpoints come from a
+separate Fairseq pipeline not yet included here. Matching main-model weights
+were found with **191,000 completed steps**, against a 400,000-step target.
+See the [cluster verification](../../docs/jeanzay-pretraining-verification.md)
+for weight hashes, actual parameters and limits of the source comparison.
+
 This folder contains the self-supervised Wav2Vec2.0 pretraining code used for
 the OpenWhistle NeurIPS paper.
 
