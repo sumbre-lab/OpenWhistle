@@ -30,7 +30,7 @@ La table principale du manuscrit reste à consolider : les anciens scores
 en accuracy et les scores en macro-F1 n'utilisent pas tous le même protocole.
 Un fichier sauvegardé n'est pas automatiquement un résultat final à publier.
 
-Les métriques par seed, prédictions et données nécessaires aux figures retenues
+Les métriques par seed (dans le CSV pour la courbe CNN), prédictions et données nécessaires aux figures retenues
 restent dans leurs sous-dossiers. Les diagnostics par session, figures par run
 et rapports historiques ont été déplacés dans une archive locale. Voir
 l'[organisation des résultats](results-organization.md) et

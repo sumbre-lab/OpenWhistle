@@ -135,7 +135,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         '--output-root',
         type=Path,
-        default=Path('cnn/learning_curve/results'),
+        default=Path('cnn/runs/learning_curve'),
     )
     parser.add_argument(
         '--dataset-source',
@@ -160,11 +160,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument('--overwrite', action='store_true')
     parser.add_argument('--plot-only', action='store_true')
     parser.add_argument(
+        '--runs-csv',
+        type=Path,
+        help='Rebuild plots and summaries from a saved per-run CSV (requires --plot-only).',
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='List planned runs without training or writing results.',
     )
     args = parser.parse_args(argv)
+    if args.runs_csv is not None and not args.plot_only:
+        parser.error('--runs-csv requires --plot-only.')
     args.fractions = sorted(set(args.fractions))
     args.seeds = list(dict.fromkeys(args.seeds))
     if not args.fractions or any(not 0 < value <= 1 for value in args.fractions):
@@ -434,13 +441,52 @@ def write_protocol(args: argparse.Namespace) -> None:
 
 
 def aggregate_and_plot(args: argparse.Namespace) -> None:
-    rows = load_rows(args)
+    if args.runs_csv is not None:
+        rows = load_csv_rows(args.runs_csv, args.fractions, args.seeds)
+    else:
+        rows = load_rows(args)
     if not rows:
         raise RuntimeError('No completed rebuttal runs were found.')
     aggregated = aggregate_rows(rows)
     write_csv(args.output_root / 'learning_curve_runs.csv', rows)
     write_csv(args.output_root / 'learning_curve_summary.csv', aggregated)
     plot_learning_curve(args.output_root, rows, aggregated)
+
+
+def load_csv_rows(
+    path: Path,
+    fractions: list[float],
+    seeds: list[int],
+) -> list[dict[str, int | float]]:
+    """Read selected runs without depending on archived training reports."""
+    integer_fields = {'seed', 'train_sessions', 'train_rows', 'best_epoch'}
+    required_fields = {
+        'session_fraction', 'train_window_hours', *integer_fields,
+        *(f'test_{metric}' for metric in METRICS),
+    }
+    expected = {(fraction, seed) for fraction in fractions for seed in seeds}
+    observed = set()
+    rows = []
+    with path.open(newline='', encoding='utf-8') as handle:
+        reader = csv.DictReader(handle)
+        missing = required_fields - set(reader.fieldnames or [])
+        if missing:
+            raise ValueError(f'Missing columns in {path}: {sorted(missing)}')
+        for raw in reader:
+            row = {
+                key: int(raw[key]) if key in integer_fields else float(raw[key])
+                for key in reader.fieldnames
+            }
+            pair = (row['session_fraction'], row['seed'])
+            if pair not in expected:
+                continue
+            if pair in observed:
+                raise ValueError(f'Duplicate fraction/seed in {path}: {pair}')
+            observed.add(pair)
+            rows.append(row)
+    if observed != expected:
+        raise ValueError(f'Missing runs in {path}: {sorted(expected - observed)}')
+    return rows
 
 
 def main(argv: list[str] | None = None) -> None:

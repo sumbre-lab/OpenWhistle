@@ -10,8 +10,8 @@ dans la branche camera-ready et d'archiver le reste en local.
   résultats Watkins avec prédictions, splits, sweep et provenance.
 - **Fine-tuning** : résumé et métriques JSON des modèles/seeds du rebuttal,
   avec les configurations équilibrées et complètes pour les comparaisons.
-- **Courbe CNN** : figure agrégée, CSV de synthèse, protocole, métriques et
-  metadata des 15 runs. Les métriques par seed permettent de recalculer les ±.
+- **Courbe CNN** : figure agrégée, CSV des 15 runs, CSV de synthèse et protocole
+  avec les paramètres communs. Les métriques par seed permettent de recalculer les ±.
 - **Figures du dataset** : figures agrégées et leurs données de préparation.
 
 Le rangement n'établit pas une validation scientifique supplémentaire :
@@ -49,3 +49,18 @@ qui s'y trouvent restent à leur emplacement d'origine.
 
 Les chemins de l’inventaire et des métadonnées des runs restent ceux de leur
 création. Le dossier courant `cnn/learning_curve/` s’appelait `cnn/rebuttal/`.
+
+## Simplification de la courbe CNN — 8 octobre 2026
+
+Les 30 fichiers JSON des dossiers `fraction_*/seed_*/` (rapports et métadonnées)
+ont été copiés puis vérifiés par SHA-256 dans :
+
+```text
+/home/pablo/Documents/OpenWhistle-archives/camera-ready-2026-10-08/cnn-learning-curve/
+```
+
+Le `manifest.json` de cette archive liste les fichiers, tailles, hashes et commit
+source (`da33bd7`). Les paramètres communs des 15 runs ont été conservés dans
+`cnn/learning_curve/results/protocol.json`. Les deux CSV et les figures PNG/PDF
+restent identiques. Le script peut reconstruire la figure directement depuis le
+CSV des runs ; les nouvelles expériences sortent dans `cnn/runs/learning_curve/`.

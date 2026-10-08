@@ -47,40 +47,64 @@ qualification must be stated in the rebuttal and figure caption.
 
 ## Reproduce the experiment
 
-Run from the repository root in the CNN environment. Training writes into the
-tracked results folder by default; use `--output-root cnn/runs/learning_curve`
-for new runs to keep the saved manuscript results intact.
+Run from the repository root in the CNN environment. New outputs default to
+ignored `cnn/runs/learning_curve/`; saved manuscript results are kept separately.
 
-One-seed pilot:
+### Rebuild the manuscript figure without training
+
+```bash
+conda run -n openwhistle-cnn \
+  python cnn/learning_curve/run_learning_curve.py \
+  --plot-only \
+  --runs-csv cnn/learning_curve/results/learning_curve_runs.csv
+```
+
+This reads the 15 saved scores and rebuilds the summary and PNG/PDF figure in
+`cnn/runs/learning_curve/`. It does not need the archived individual reports or
+download audio or checkpoints. Fractions and seeds can select a subset of the CSV.
+
+### Run new trainings
+
+One-seed pilot with the current default dataset:
 
 ```bash
 conda run -n openwhistle-cnn \
   python cnn/learning_curve/run_learning_curve.py --seeds 7
 ```
 
-Full experiment (15 trainings):
+The saved experiment used `OpenWhistleNeurIPS26/OpenWhistle-CNN` and eight data
+workers. Its recorded settings are in [protocol.json](results/protocol.json):
 
 ```bash
 conda run -n openwhistle-cnn \
-  python cnn/learning_curve/run_learning_curve.py
+  python cnn/learning_curve/run_learning_curve.py \
+  --dataset-source OpenWhistleNeurIPS26/OpenWhistle-CNN --num-workers 8
 ```
 
-The command is resumable: completed combinations are skipped. `--plot-only`
-rebuilds the tables and figure, while `--dry-run` only lists the planned runs.
-All outputs stay under `cnn/learning_curve/results/`.
+The historical dataset revision was not recorded. Equivalence with the current
+`dolphinteam/OpenWhistle-CNN` default remains to be verified. Session sampling is
+deterministic for a fixed dataset: sorted session IDs, a NumPy permutation with
+the run seed, and the first `ceil(fraction * number_of_sessions)` sessions.
 
-Outputs:
+Training is resumable: completed combinations with matching settings are skipped.
+`--dry-run` lists planned runs without training or writing results. `--plot-only`
+without `--runs-csv` aggregates reports from the selected output directory.
 
-- `learning_curve_test_f1.png` and `.pdf`;
-- `learning_curve_runs.csv`, one row per run;
-- `learning_curve_summary.csv`, mean and standard deviation per size;
-- `protocol.json`;
-- checkpoints and reports under one directory per size and seed for new runs.
+### Files kept in the repository
 
-The repository retains the aggregate curve, its source CSVs, the protocol and
-summaries for the 15 completed runs. Weights are excluded from Git; individual
-plots and session diagnostics are in the [local archive](../../docs/results-organization.md).
-Saved metadata keeps the original `cnn/rebuttal/` paths.
+```text
+results/
+├── protocol.json
+├── learning_curve_runs.csv
+├── learning_curve_summary.csv
+├── learning_curve_test_f1.png
+└── learning_curve_test_f1.pdf
+```
+
+The CSV keeps each seed's metrics, training-set sizes and best epoch. Individual
+training reports and metadata are in the [local archive](../../docs/results-organization.md).
+Their saved paths retain the historical `cnn/rebuttal/` location. New runs generate
+checkpoints and reports under `fraction_*/seed_*/` in the ignored output folder.
 
 ## Rebuttal context
 

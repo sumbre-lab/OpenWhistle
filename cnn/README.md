@@ -15,7 +15,7 @@ cnn/
 ├── utils/                          # shared model, data, metrics and reports
 ├── learning_curve/                 # training-set size experiment
 │   ├── run_learning_curve.py
-│   └── results/                    # manuscript curve and per-run summaries
+│   └── results/                    # manuscript curve, CSVs and protocol
 ├── analysis/                       # false-negative acoustic analysis
 └── external/                       # WMMSD/DCLDE presets and local preparation
 ```

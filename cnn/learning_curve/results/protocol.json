@@ -17,5 +17,17 @@
   "validation_and_test_fixed": true,
   "primary_metric": "test_f1",
   "hyperparameter_policy": "fixed published training recipe for all sizes",
-  "window_seconds": 0.4
+  "window_seconds": 0.4,
+  "training_settings": {
+    "dataset_source": "OpenWhistleNeurIPS26/OpenWhistle-CNN",
+    "train_input_source": "spectrogram",
+    "batch_size": 4,
+    "num_epochs": 50,
+    "patience": 10,
+    "learning_rate": 1e-05,
+    "num_workers": 8,
+    "use_amp": true,
+    "cpu_only": false
+  },
+  "session_selection": "Sorted unique session IDs, permuted with numpy.random.default_rng(seed); retain the first ceil(fraction * session_count) sessions."
 }
