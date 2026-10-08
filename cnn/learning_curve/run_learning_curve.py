@@ -1,6 +1,6 @@
 """Fixed-recipe CNN learning curve for the reviewer rebuttal.
 
-This file is intentionally self-contained inside ``cnn/rebuttal``. It reuses
+This file is intentionally self-contained inside ``cnn/learning_curve``. It reuses
 the published CNN trainer without changing the main training pipeline.
 """
 
@@ -135,7 +135,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         '--output-root',
         type=Path,
-        default=Path('cnn/rebuttal/results'),
+        default=Path('cnn/learning_curve/results'),
     )
     parser.add_argument(
         '--dataset-source',

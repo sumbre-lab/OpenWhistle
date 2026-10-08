@@ -129,7 +129,7 @@ Wav2Vec2 principal est public parmi les six vérifiés.
 Le config du Wav2Vec2 principal contient une référence `checkpoint-182000`,
 alors que le preprint décrit 400k steps : retrouver le trainer state et la
 règle de sélection avant de conclure sur ce décalage. Voir
-`experiments/benchmark/PRETRAINING.md` et `docs/pretraining-checkpoints.json`.
+`experiments/benchmark/PRETRAINING.md` et `docs/provenance/pretraining-checkpoints.json`.
 
 Les scripts `prepare_stage1_fraction.py` et
 `prepare_btb3_fraction_data.py` sélectionnent un préfixe de manifests ;

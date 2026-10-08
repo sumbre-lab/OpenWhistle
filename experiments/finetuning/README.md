@@ -35,7 +35,7 @@ python -m pip install -r experiments/benchmark/requirements.txt
 From the repository root:
 
 ```bash
-bash experiments/finetuning/run_classification.sh
+bash experiments/finetuning/scripts/run_classification.sh
 ```
 
 The default AVES run initializes the original `aves-base-bio` checkpoint through
@@ -68,7 +68,7 @@ effective batch size.
 From the repository root:
 
 ```bash
-bash experiments/finetuning/run_hf_collection_all_tasks.sh
+bash experiments/finetuning/scripts/run_hf_collection_all_tasks.sh
 ```
 
 This evaluates the shared Hub checkpoint registry on balanced, unbalanced, and

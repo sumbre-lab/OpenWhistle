@@ -6,7 +6,7 @@ The original working tree on local `pablo/main` was preserved.
 
 Organization update, 2026-10-07: intermediate and historical outputs described
 below were retained at integration time, then moved to a local archive at
-Pablo's request. See [results organization](results-organization.md) for the
+Pablo's request. See [results organization](../results-organization.md) for the
 retained reports, complete inventory and retrieval instructions.
 
 ## Branch inventory and decisions

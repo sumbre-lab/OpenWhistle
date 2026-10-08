@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Trains split-based LR then plot_pr_micro for each dataset. Always cds to this
-# script's directory (experiments/benchmark); outputs under ./results/ .
-# Invoke: ./run_all.sh  or  bash path/to/experiments/benchmark/run_all.sh
+# experiment directory (experiments/benchmark); outputs under ./results/ .
+# Invoke: ./scripts/run_all.sh  or  bash path/to/experiments/benchmark/scripts/run_all.sh
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PYTHONPATH="${ROOT}/src"
 

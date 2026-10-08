@@ -2,18 +2,19 @@
 
 set -euo pipefail
 
-for backbone in aves_bio biolingual; do
-  if [[ "${backbone}" == "aves_bio" ]]; then
-    batch_size=32
-    learning_rate=1e-5
-  else
-    batch_size=64
+REPOSITORY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+cd "$REPOSITORY_DIR"
+
+for backbone in aves_bio aves_core biolingual; do
+  if [[ "${backbone}" == "biolingual" ]]; then
     learning_rate=5e-6
+  else
+    learning_rate=1e-5
   fi
 
-  for config in unbalanced all; do
+  for config in balanced unbalanced all; do
     for seed in 42 43 44; do
-      output_dir="experiments/finetuning/results/${backbone}/${config}/seed_${seed}"
+      output_dir="experiments/finetuning/results/classification_v2/${backbone}/${config}/seed_${seed}"
 
       if [[ -f "${output_dir}/results.json" ]]; then
         echo "Déjà terminé : ${backbone} / ${config} / seed ${seed}"
@@ -30,7 +31,9 @@ for backbone in aves_bio biolingual; do
         --dataset_config "${config}" \
         --output_dir "${output_dir}" \
         --seed "${seed}" \
-        --batch_size "${batch_size}" \
+        --epochs 50 \
+        --patience 15 \
+        --batch_size 32 \
         --gradient_accumulation_steps 1 \
         --num_workers 8 \
         --learning_rate "${learning_rate}" \

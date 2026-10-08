@@ -36,7 +36,7 @@ leur retrait de la copie camera-ready :
 
 Les chemins relatifs d'origine sont conservés dans l'archive. Son
 `manifest.json` donne les hashes, tailles, raisons et commit source.
-L'[inventaire suivi dans Git](archived-results.csv) permet de retrouver chaque
+L'[inventaire suivi dans Git](provenance/archived-results.csv) permet de retrouver chaque
 fichier sans remettre tout le contenu dans le dépôt.
 
 Pour récupérer un fichier, copier son chemin depuis l'archive vers un dossier
@@ -46,3 +46,6 @@ de travail dédié. Pour examiner tous les résultats dans Git, le commit
 Le dossier de travail initial `/home/pablo/Documents/OpenWhistle` et ses
 modifications non commitées n'ont pas été nettoyés. Les poids et gros caches
 qui s'y trouvent restent à leur emplacement d'origine.
+
+Les chemins de l’inventaire et des métadonnées des runs restent ceux de leur
+création. Le dossier courant `cnn/learning_curve/` s’appelait `cnn/rebuttal/`.

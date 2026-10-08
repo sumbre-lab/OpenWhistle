@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Trains the open-set (known vs. unseen whistle type) LR probe for each model.
-# Always cds to this script's directory (experiments/benchmark); outputs under
+# Always cds to the experiment directory (experiments/benchmark); outputs under
 # ./results/results_openset.txt .
-# Invoke: ./run_openset.sh  or  bash path/to/experiments/benchmark/run_openset.sh
+# Invoke: ./scripts/run_openset.sh  or  bash path/to/experiments/benchmark/scripts/run_openset.sh
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PYTHONPATH="${ROOT}/src"
 

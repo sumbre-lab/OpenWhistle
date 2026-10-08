@@ -125,5 +125,5 @@ experiments/benchmark/results/roc_curves/dolphinteam__OpenWhistle-Wav2Vec2.0/
 experiments/benchmark/results/watkins_macro_f1/*/bootstrap.csv
 experiments/benchmark/results/watkins_macro_f1/*/historical_metrics.json
 experiments/finetuning/results/hf_collection/
-cnn/rebuttal/results/fraction_*/seed_*/figures/
-cnn/rebuttal/results/fraction_*/seed_*/reports/*.csv
+cnn/learning_curve/results/fraction_*/seed_*/figures/
+cnn/learning_curve/results/fraction_*/seed_*/reports/*.csv

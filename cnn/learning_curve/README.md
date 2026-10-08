@@ -53,19 +53,19 @@ One-seed pilot:
 
 ```bash
 conda run -n openwhistle-cnn \
-  python cnn/rebuttal/run_learning_curve.py --seeds 7
+  python cnn/learning_curve/run_learning_curve.py --seeds 7
 ```
 
 Full experiment (15 trainings):
 
 ```bash
 conda run -n openwhistle-cnn \
-  python cnn/rebuttal/run_learning_curve.py
+  python cnn/learning_curve/run_learning_curve.py
 ```
 
 The command is resumable: completed combinations are skipped. `--plot-only`
 rebuilds the tables and figure, while `--dry-run` only lists the planned runs.
-All outputs stay under `cnn/rebuttal/results/`.
+All outputs stay under `cnn/learning_curve/results/`.
 
 Expected outputs:
 

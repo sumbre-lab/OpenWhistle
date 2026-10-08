@@ -67,14 +67,27 @@ distinguishes reference tables, detailed reports and historical outputs.
 
 ```text
 .
-├── cnn/                    # CNN whistle presence detection and segmentation
-├── datasets_figures/       # scripts for the dataset overview figures
+├── cnn/                         # whistle detection, segmentation and inference
+│   ├── utils/
+│   └── learning_curve/          # training-set size experiment and results
+├── datasets_figures/            # dataset overview figures
 ├── experiments/
-│   ├── benchmark/          # frozen-embedding + logistic-regression benchmark
-│   ├── finetuning/          # supervised encoder fine-tuning
-│   └── pretraining/        # self-supervised pretraining code
+│   ├── pretraining/
+│   │   └── ANNpretraining/      # self-supervised training implementation and launcher
+│   ├── benchmark/
+│   │   ├── scripts/             # experiment launchers
+│   │   ├── src/                 # frozen embeddings and logistic regression
+│   │   └── results/             # manuscript tables and supporting reports
+│   └── finetuning/
+│       ├── scripts/             # experiment launchers
+│       ├── src/                 # supervised encoder training
+│       └── results/             # manuscript results by model and seed
+├── docs/
+│   ├── START_HERE.md            # navigation guide
+│   └── provenance/             # audits, checkpoint mapping and archive inventory
+├── tests/
 ├── Annotation_Pipeline.png
-├── LICENSE-DATA            # CC BY 4.0 terms for the OpenWhistle datasets
+├── LICENSE-DATA
 └── README.md
 ```
 
@@ -94,7 +107,7 @@ Install Python 3.12 and the benchmark dependencies:
 ```bash
 cd experiments/benchmark
 pip install -r requirements.txt
-./run_all.sh
+./scripts/run_all.sh
 ```
 
 If you need a specific CUDA or CPU PyTorch build, install `torch` and `torchaudio` from the [PyTorch installation guide](https://pytorch.org/get-started/locally/) before installing the requirements.
@@ -103,9 +116,9 @@ If you need a specific CUDA or CPU PyTorch build, install `torch` and `torchaudi
 
 ## Additional experiments
 
-The rebuttal additions include pretraining-size ablations, supervised encoder fine-tuning, open-set evaluation, CNN learning curves, and ROC/UMAP figures. See the [benchmark README](experiments/benchmark/README.md), [fine-tuning README](experiments/finetuning/README.md), and [CNN learning-curve README](cnn/rebuttal/README.md) for commands.
+The rebuttal additions include pretraining-size ablations, supervised encoder fine-tuning, open-set evaluation, CNN learning curves, and ROC/UMAP figures. See the [benchmark README](experiments/benchmark/README.md), [fine-tuning README](experiments/finetuning/README.md), and [CNN learning-curve README](cnn/learning_curve/README.md) for commands.
 
-The [camera-ready branch review](docs/camera-ready-review.md) records the source branches, integration decisions, result provenance, and remaining release checks.
+The [camera-ready branch review](docs/provenance/camera-ready-review.md) records the source branches, integration decisions, result provenance, and remaining release checks.
 
 ## Authors
 

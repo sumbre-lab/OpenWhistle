@@ -78,7 +78,7 @@ Wav2Vec2 10%, 50%, and the alternative 100% export are **private**. The main
 `OpenWhistle-Wav2Vec2.0` export is public. This records their current access,
 not a change to visibility. They need appropriate public access for release.
 Revisions, weight hashes and cached architecture metadata are recorded in
-[`docs/pretraining-checkpoints.json`](../../docs/pretraining-checkpoints.json).
+[`docs/provenance/pretraining-checkpoints.json`](../../docs/provenance/pretraining-checkpoints.json).
 The historical score CSV does not record model revisions, so the revisions
 observed today must not be treated as proven revisions of those old runs.
 
@@ -107,7 +107,7 @@ claiming the final training recipe is reproduced.
 Update, 2026-10-07: SSH verification found identical main-model weights on
 Jean Zay, with `trainer_state.json` reporting **191,000 completed steps** and
 400,000 planned steps. The 10% and 50% weights match exports from a separate
-Fairseq pipeline. See the [cluster verification](../../docs/jeanzay-pretraining-verification.md).
+Fairseq pipeline. See the [cluster verification](../../docs/provenance/jeanzay-pretraining-verification.md).
 
 The AVES recipe must likewise include its MFCC and Stage-2 HuBERT pseudo-label
 generation and the exact checkpoint selection. The local Stage-2 model card

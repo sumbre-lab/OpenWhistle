@@ -73,7 +73,7 @@ From this directory:
 
 ```bash
 export PYTHONPATH="${PWD}/src"
-./run_all.sh
+./scripts/run_all.sh
 ```
 
 `run_all.sh` loops over every `--model` above and invokes `train_lr_splits.py` for **classification** and **detection** with **C ∈ {0.1, 1.0, 10.0}** (open `run_all.sh` for the exact command sequence).
@@ -102,7 +102,7 @@ evaluate. The collection runner evaluates every listed checkpoint on:
 From the repository root:
 
 ```bash
-bash experiments/benchmark/run_rebuttal_benchmark.sh
+bash experiments/benchmark/scripts/run_rebuttal_benchmark.sh
 ```
 
 This command is configured for a 16 GB NVIDIA GPU: batch size 64, FP16,
@@ -135,7 +135,7 @@ For the high-level repository layout, CNN branch, and dataset overview figures, 
 ## Open-set evaluation
 
 ```bash
-bash experiments/benchmark/run_openset.sh
+bash experiments/benchmark/scripts/run_openset.sh
 ```
 
 Run this command from the repository root. It evaluates Dolph2Vec, BioLingual,
@@ -166,10 +166,10 @@ exports before plotting.
 
 Historical F1/accuracy, open-set, and UMAP results imported from feature branches
 are archived locally. See [results organization](../../docs/results-organization.md)
-for retrieval and the [branch review](../../docs/camera-ready-review.md) for provenance.
+for retrieval and the [branch review](../../docs/provenance/camera-ready-review.md) for provenance.
 
 The former `faadil/F1` pretraining-size entry point is available as
-`bash experiments/benchmark/run_pretrain_variants.sh`. It uses the shared Hub
+`bash experiments/benchmark/scripts/run_pretrain_variants.sh`. It uses the shared Hub
 registry and the current embedding pipeline on `balanced` and `all`. Use
 `--model_ids` to restrict the sweep. The standard benchmark continues to run
 both classification and detection.

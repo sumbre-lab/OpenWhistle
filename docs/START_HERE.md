@@ -13,7 +13,7 @@ servent à vérifier les résultats ; il n'est pas nécessaire de les lire tous.
 | Détecter et découper les sifflements | `cnn/` | [README du CNN](../cnn/README.md) |
 
 Dans les expériences, `src/` contient les implémentations, les scripts
-`run_*.sh` lancent les expériences et `results/` conserve leurs rapports.
+`scripts/run_*.sh` lancent les expériences et `results/` conserve leurs rapports.
 `datasets_figures/` sert aux figures descriptives du dataset.
 
 ## Les résultats : commencer par les résumés
@@ -24,7 +24,7 @@ Dans les expériences, `src/` contient les implémentations, les scripts
 | Source des scores de préentraînement | [CSV de référence](../experiments/benchmark/results/hf_collections_benchmark.csv) | Données permettant de reconstruire les tableaux |
 | Fine-tuning | [Table des résultats](../experiments/finetuning/results/REBUTTAL_RESULTS.md) | Quatre modèles, moyennes et écarts-types entre seeds |
 | Watkins | [Résultats et protocole](../experiments/benchmark/WATKINS.md) | Probe recalculé sur embeddings locaux ; extraction audio à vérifier |
-| CNN, quantité de données | [Résumé de la courbe](../cnn/rebuttal/results/learning_curve_summary.csv) | Moyennes des trois répétitions sauvegardées |
+| CNN, quantité de données | [Résumé de la courbe](../cnn/learning_curve/results/learning_curve_summary.csv) | Moyennes des trois répétitions sauvegardées |
 
 La table principale du manuscrit reste à consolider : les anciens scores
 en accuracy et les scores en macro-F1 n'utilisent pas tous le même protocole.
@@ -49,11 +49,11 @@ dépôt selon la demande de Pablo.
 
 ## Pour vérifier la provenance
 
-- [Préentraînement sur Jean Zay](jeanzay-pretraining-verification.md) : poids
+- [Préentraînement sur Jean Zay](provenance/jeanzay-pretraining-verification.md) : poids
   correspondants, 191k étapes réalisées et pipeline Fairseq des ablations absent.
 - [Correspondance checkpoints–tableaux](../experiments/benchmark/PRETRAINING.md).
-- [Audit de reproductibilité](reproducibility-audit.md) : ce qu'il reste à fournir.
-- [Revue des branches](camera-ready-review.md) : origine des imports.
+- [Audit de reproductibilité](provenance/reproducibility-audit.md) : ce qu'il reste à fournir.
+- [Revue des branches](provenance/camera-ready-review.md) : origine des imports.
 
 Les changements camera-ready se trouvent dans la copie de travail
 `/tmp/OpenWhistle-camera-ready`. Le dossier initial

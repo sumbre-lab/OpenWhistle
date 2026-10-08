@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+REPOSITORY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+cd "$REPOSITORY_DIR"
+
 for config in balanced unbalanced all; do
   if [[ "${config}" == "balanced" ]]; then
     batch_size=8
