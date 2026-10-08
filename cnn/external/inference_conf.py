@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_ROOT = Path(
     os.environ.get(
         'OPENWHISTLE_CNN_INFERENCE_OUTPUT_ROOT',

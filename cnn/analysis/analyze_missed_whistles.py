@@ -8,6 +8,7 @@ groups can be compared.
 """
 
 import argparse
+import sys
 import csv
 import json
 from pathlib import Path
@@ -23,6 +24,11 @@ from scipy.ndimage import median_filter
 from scipy.signal import spectrogram as scipy_spectrogram
 from scipy.stats import mannwhitneyu
 from tqdm.auto import tqdm
+
+# Allow direct execution from any working directory.
+CNN_DIR = Path(__file__).resolve().parents[1]
+if str(CNN_DIR) not in sys.path:
+    sys.path.insert(0, str(CNN_DIR))
 
 from inference import InferenceConfig, load_inference_model, predict_batch
 from utils.model import (

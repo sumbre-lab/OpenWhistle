@@ -69,6 +69,8 @@ distinguishes reference tables, detailed reports and historical outputs.
 .
 ├── cnn/                         # whistle detection, segmentation and inference
 │   ├── utils/
+│   ├── analysis/                # false-negative acoustic analysis
+│   ├── external/                # WMMSD/DCLDE inference tools
 │   └── learning_curve/          # training-set size experiment and results
 ├── datasets_figures/            # dataset overview figures
 ├── experiments/

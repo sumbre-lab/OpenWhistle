@@ -1,5 +1,11 @@
 import argparse
+import sys
 from pathlib import Path
+
+# Allow direct execution from any working directory.
+CNN_DIR = Path(__file__).resolve().parents[1]
+if str(CNN_DIR) not in sys.path:
+    sys.path.insert(0, str(CNN_DIR))
 
 from inference import InferenceConfig, InferenceRun, parse_optional_int
 from inference_conf import dataset_names, resolve_dataset

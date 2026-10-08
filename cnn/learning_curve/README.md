@@ -1,4 +1,4 @@
-# Rebuttal: CNN performance versus training-set size
+# CNN performance versus training-set size
 
 ## Question
 
@@ -6,7 +6,7 @@
 > achieve this level of success? It would be good to plot performance as a
 > function of training set size to understand this.
 
-## Proposed experiment
+## Protocol
 
 Train the published VGG16 detector on nested subsets containing 5%, 10%, 25%,
 50%, and 100% of the training sessions, with three seeds per size.
@@ -45,9 +45,11 @@ search at every point would answer that second question, but at much greater
 computational cost and with additional model-selection variance. This
 qualification must be stated in the rebuttal and figure caption.
 
-## Intended commands
+## Reproduce the experiment
 
-Do not run these commands until the protocol has been approved.
+Run from the repository root in the CNN environment. Training writes into the
+tracked results folder by default; use `--output-root cnn/runs/learning_curve`
+for new runs to keep the saved manuscript results intact.
 
 One-seed pilot:
 
@@ -67,15 +69,20 @@ The command is resumable: completed combinations are skipped. `--plot-only`
 rebuilds the tables and figure, while `--dry-run` only lists the planned runs.
 All outputs stay under `cnn/learning_curve/results/`.
 
-Expected outputs:
+Outputs:
 
 - `learning_curve_test_f1.png` and `.pdf`;
 - `learning_curve_runs.csv`, one row per run;
 - `learning_curve_summary.csv`, mean and standard deviation per size;
 - `protocol.json`;
-- normal checkpoints and reports under one directory per size and seed.
+- checkpoints and reports under one directory per size and seed for new runs.
 
-## Suggested rebuttal text
+The repository retains the aggregate curve, its source CSVs, the protocol and
+summaries for the 15 completed runs. Weights are excluded from Git; individual
+plots and session diagnostics are in the [local archive](../../docs/results-organization.md).
+Saved metadata keeps the original `cnn/rebuttal/` paths.
+
+## Rebuttal context
 
 > We thank the reviewer for this suggestion. We added a learning-curve
 > experiment in which the VGG16 detector is trained on nested, session-level
