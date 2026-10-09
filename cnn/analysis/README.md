@@ -1,4 +1,4 @@
-# False-negative analysis
+# SNR figure and CNN error analysis
 
 ## Manuscript SNR panel
 
@@ -6,8 +6,7 @@ To render panel F with **Pretraining** on the left and **Classification (all)**
 on the right, without downloading a model or running inference:
 
 ```bash
-python cnn/analysis/analyze_missed_whistles.py \
-  --plot-snr-only --output-dir cnn/runs/analysis
+python cnn/analysis/plot_snr.py
 ```
 
 This uses `datasets_figures/data/snr_detection_windows.csv` (pretraining windows)
@@ -17,7 +16,8 @@ of 4,000 windows, rather than every pretraining recording. These sidecars use
 CREPE frequency tracking; the false-negative diagnostic below estimates SNR
 using a spectrogram ridge, so its values belong to a different analysis.
 
-Outputs are `figures/snr_pretraining_vs_classification_all.png` and `.pdf`.
+Outputs are `cnn/runs/snr/snr_pretraining_vs_classification_all.png` and `.pdf`.
+Use `--output-dir` to change this directory.
 The style and 3/6/10 dB reference lines reuse the manuscript plotting helper,
 including its displayed range of −10 to 36 dB. Override inputs with
 `--pretraining-snr-csv` and `--classification-snr-csv`.

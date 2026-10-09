@@ -16,12 +16,12 @@ cnn/
 ├── learning_curve/                 # training-set size experiment
 │   ├── run_learning_curve.py
 │   └── results/                    # manuscript curve, CSVs and protocol
-├── analysis/                       # false-negative acoustic analysis
+├── analysis/                       # SNR figure and false-negative analysis
 └── external/                       # WMMSD/DCLDE presets and local preparation
 ```
 
 Start with the three commands below. The [learning curve](learning_curve/README.md),
-[false-negative analysis](analysis/README.md) and
+[SNR figure and error analysis](analysis/README.md) and
 [external datasets](external/README.md) have their own instructions.
 Run the examples from the repository root. Use `--help` to inspect each CLI.
 
