@@ -97,8 +97,11 @@ Hugging Face CSV/Parquet inputs via `--source hf`; see its `--help` for options.
 ## Outputs and manuscript results
 
 New checkpoints, caches, plots and reports go under ignored `cnn/runs/` by
-default. Training paths are relative to the working directory; supply separate
-`--models-dir`, `--figs-dir` and `--reports-dir` for independent runs.
+default. Default output paths are anchored to this checkout, even when commands are
+launched from another directory. Explicit relative paths are interpreted from
+the working directory; supply separate `--models-dir`, `--figs-dir` and
+`--reports-dir` for independent runs. The learning-curve launcher resolves its
+relative `--output-root` from the repository root.
 
 Training writes `reports/run_summary.json`; test-only evaluation writes
 `reports/test_summary.json`, `reports/test_roc_curve.csv` and

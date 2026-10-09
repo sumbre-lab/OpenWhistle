@@ -180,6 +180,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error('--seeds requires at least one value.')
     if args.window_seconds <= 0:
         parser.error('--window-seconds must be positive.')
+    args.output_root = args.output_root.expanduser()
+    if args.runs_csv is not None:
+        args.runs_csv = args.runs_csv.expanduser()
     if not args.output_root.is_absolute():
         args.output_root = REPO_ROOT / args.output_root
     return args

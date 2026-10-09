@@ -155,10 +155,10 @@ class SequenceConfig:
     @property
     def resolved_output_csv(self) -> Path:
         if self.output_csv is not None:
-            return self.output_csv
+            return self.output_csv.expanduser()
         if self.source_kind == 'hf':
             return (
-                Path('cnn/runs/sequences')
+                (Path(__file__).resolve().parent / 'runs/sequences')
                 / self.hf_repo_slug
                 / 'whistle_sequences.csv'
             )

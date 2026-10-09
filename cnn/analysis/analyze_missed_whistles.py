@@ -82,7 +82,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument('--model-repo', default='dolphinteam/OpenWhistle-CNN-VGG16', help=argparse.SUPPRESS)
     parser.add_argument('--model-filename', default='model_vgg_final_best.pt', help=argparse.SUPPRESS)
-    parser.add_argument('--output-dir', type=Path, default=Path('cnn/runs/analysis'))
+    parser.add_argument('--output-dir', type=Path, default=CNN_DIR / 'runs/analysis')
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--threshold', type=float, default=0.5)
     parser.add_argument('--cpu-only', action='store_true', default=False)
@@ -92,7 +92,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0,
         help='Optional cap on the number of test rows processed (0 = no cap). Useful for smoke testing.',
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    args.output_dir = args.output_dir.expanduser()
+    if args.checkpoint_path is not None:
+        args.checkpoint_path = args.checkpoint_path.expanduser()
+    return args
 
 def parse_whistle_type(file_name: str) -> str:
     stem = Path(str(file_name)).stem

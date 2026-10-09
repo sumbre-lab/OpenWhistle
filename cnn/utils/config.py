@@ -75,6 +75,8 @@ def add_bool_arg(
         help=help_text,
     )
 
+CNN_RUNS_DIR = Path(__file__).resolve().parents[1] / 'runs'
+
 @dataclass(frozen=True)
 class TrainConfig:
     img_size: int = 224
@@ -85,9 +87,9 @@ class TrainConfig:
     random_state: int = 7
     num_workers: int = 0
     dataset_source: str = 'dolphinteam/OpenWhistle-CNN'
-    models_dir: str = 'cnn/runs/models'
-    figs_dir: str = 'cnn/runs/figures'
-    reports_dir: str = 'cnn/runs/reports'
+    models_dir: str = str(CNN_RUNS_DIR / 'models')
+    figs_dir: str = str(CNN_RUNS_DIR / 'figures')
+    reports_dir: str = str(CNN_RUNS_DIR / 'reports')
     train_split: str = 'train'
     validation_split: str = 'validation'
     test_split: str = 'test'
@@ -115,10 +117,15 @@ class TrainConfig:
     lr_scheduler_factor: float = 0.5
     lr_scheduler_patience: int = 5
     min_learning_rate: float = 1e-6
-    spectrogram_cache_dir: Path = Path('cnn/runs/spectrogram_cache')
+    spectrogram_cache_dir: Path = CNN_RUNS_DIR / 'spectrogram_cache'
     checkpoint_path: str | None = None
     checkpoint_repo: str = 'dolphinteam/OpenWhistle-CNN-VGG16'
     checkpoint_filename: str = 'model_vgg_final_best.pt'
+
+    def __post_init__(self) -> None:
+        for name in ('models_dir', 'figs_dir', 'reports_dir'):
+            object.__setattr__(self, name, os.path.expanduser(getattr(self, name)))
+        object.__setattr__(self, 'spectrogram_cache_dir', Path(self.spectrogram_cache_dir).expanduser())
 
     @classmethod
     def defaults_from_env(cls) -> 'TrainConfig':
@@ -396,7 +403,7 @@ class TrainConfig:
     @property
     def eval_checkpoint_path(self) -> str:
         if self.checkpoint_path:
-            return self.checkpoint_path
+            return os.path.expanduser(self.checkpoint_path)
         if self.eval_only:
             return hf_hub_download(
                 repo_id=self.checkpoint_repo,

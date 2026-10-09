@@ -46,7 +46,7 @@ class InferenceConfig:
     model_repo: str = 'dolphinteam/OpenWhistle-CNN-VGG16'
     model_filename: str = 'model_vgg_final_best.pt'
     recordings_dir: Path = Path('.')
-    output_dir: Path = Path('cnn/runs/inference')
+    output_dir: Path = Path(__file__).resolve().parent / 'runs/inference'
     batch_size: int = 64
     threshold: float = 0.5
     start_time: float = 0.0
@@ -57,6 +57,12 @@ class InferenceConfig:
     limit: int = 0
     cpu_only: bool = False
     spectrogram_config: SpectrogramConfig = field(default_factory=SpectrogramConfig)
+
+    def __post_init__(self) -> None:
+        for name in ('checkpoint_path', 'recordings_dir', 'output_dir', 'specific_files_path'):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, Path(value).expanduser())
 
     @classmethod
     def from_args(cls, argv: list[str] | None = None) -> 'InferenceConfig':

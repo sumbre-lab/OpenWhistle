@@ -41,6 +41,7 @@ def parse_args(argv=None):
         parser.error('--limit must be nonnegative.')
     if args.workers < 1:
         parser.error('--workers must be positive.')
+    args.output_dir = args.output_dir.expanduser()
     return args
 
 

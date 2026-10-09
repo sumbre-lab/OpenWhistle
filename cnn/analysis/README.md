@@ -70,3 +70,15 @@ python cnn/analysis/plot_snr.py --plot-only
 
 A normal invocation recomputes the scores; `--plot-only` requires this script's
 CSV files and protocol in the chosen output directory, and uses no network.
+
+## False-negative analysis
+
+The original CNN error-analysis script is also available:
+
+```bash
+python cnn/analysis/analyze_missed_whistles.py
+```
+
+Its default reports and plots go to `cnn/runs/analysis/`, anchored to the
+checkout. This command evaluates the CNN; `plot_snr.py` generates the dataset
+SNR comparison described above.
