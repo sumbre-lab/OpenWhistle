@@ -685,6 +685,7 @@ def draw_snr_detection_vs_gold_on_ax(
     small_panel: bool = False,
     slim_violin: bool = False,
     font_extra: int = 0,
+    group_labels: tuple[str, str] = ("All", "Gold set"),
 ) -> bool:
     """SNR violins: all detection windows (``All``) vs gold classification set."""
     fe = max(0, int(font_extra))
@@ -725,18 +726,19 @@ def draw_snr_detection_vs_gold_on_ax(
     for lo, hi, color in spans:
         ax.axhspan(lo, hi, facecolor=color, edgecolor="none", alpha=0.92, zorder=0)
 
+    detection_label, gold_label = group_labels
     rows: list[dict] = []
     if len(det):
-        rows.extend({"snr_db": float(v), "group": "All"} for v in det)
+        rows.extend({"snr_db": float(v), "group": detection_label} for v in det)
     if len(gold):
-        rows.extend({"snr_db": float(v), "group": "Gold set"} for v in gold)
+        rows.extend({"snr_db": float(v), "group": gold_label} for v in gold)
     import pandas as pd
 
     plot_df = pd.DataFrame(rows)
-    order = ["All", "Gold set"]
+    order = [detection_label, gold_label]
     order = [g for g in order if g in plot_df["group"].unique()]
     # Same NSW / SW base hues as the coast pie (CLASS_COLORS[0] vs [2])
-    palette = {"Gold set": CLASS_COLORS[0], "All": CLASS_COLORS[2]}
+    palette = {gold_label: CLASS_COLORS[0], detection_label: CLASS_COLORS[2]}
 
     if slim_violin:
         v_width = 0.34 if small_panel else (0.48 if compact else 0.56)

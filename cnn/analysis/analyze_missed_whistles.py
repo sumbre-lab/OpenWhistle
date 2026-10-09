@@ -5,6 +5,10 @@ dolphinteam/OpenWhistle-CNN, isolates false negatives (true label
 whistle, predicted noise), and computes an SNR estimate plus other acoustic
 measures for every whistle-labeled clip (missed and detected) so the two
 groups can be compared.
+
+Also renders the manuscript's panel-F SNR distributions from the saved
+pretraining and classification-all sidecars, without CNN inference when
+``--plot-snr-only`` is supplied.
 """
 
 import argparse
@@ -27,6 +31,7 @@ from tqdm.auto import tqdm
 
 # Allow direct execution from any working directory.
 CNN_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = CNN_DIR.parent
 if str(CNN_DIR) not in sys.path:
     sys.path.insert(0, str(CNN_DIR))
 
@@ -86,6 +91,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--threshold', type=float, default=0.5)
     parser.add_argument('--cpu-only', action='store_true', default=False)
+    parser.add_argument(
+        '--plot-snr-only', action='store_true',
+        help='Render pretraining vs classification-all SNR from local CSVs; skip inference.',
+    )
+    parser.add_argument(
+        '--pretraining-snr-csv', type=Path,
+        default=REPO_ROOT / 'datasets_figures/data/snr_detection_windows.csv',
+    )
+    parser.add_argument(
+        '--classification-snr-csv', type=Path,
+        default=REPO_ROOT / 'datasets_figures/data/snr_classification.csv',
+    )
     parser.add_argument(
         '--limit',
         type=int,
@@ -525,8 +542,51 @@ def run_analysis(args: argparse.Namespace) -> None:
     print(f'Wrote summary to {summary_path}')
     print(f'Wrote figures to {figures_dir}')
 
+def plot_dataset_snr(args: argparse.Namespace) -> None:
+    """Reuse panel F's data filtering and visual style with explicit dataset labels."""
+    import seaborn as sns
+
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from datasets_figures.scripts.classification_overview import (
+        draw_snr_detection_vs_gold_on_ax,
+        load_snr_db_ok_only,
+    )
+
+    arrays = []
+    for path in (args.pretraining_snr_csv, args.classification_snr_csv):
+        if not path.is_file():
+            raise FileNotFoundError(f'SNR CSV not found: {path}')
+        values = load_snr_db_ok_only(path)
+        if values is None:
+            raise ValueError(f'No valid SNR values with status=ok in {path}')
+        values = values[np.isfinite(values)]
+        if len(values) < 2 or np.ptp(values) == 0:
+            raise ValueError(f'Not enough SNR variation to plot a violin: {path}')
+        arrays.append(values)
+
+    figures_dir = args.output_dir / 'figures'
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(4.2, 4.4))
+    draw_snr_detection_vs_gold_on_ax(
+        ax, arrays[0], arrays[1], sns,
+        slim_violin=True,
+        group_labels=('Pretraining', 'Classification\n(all)'),
+    )
+    fig.subplots_adjust(left=0.18, right=0.77, bottom=0.16, top=0.9)
+    for extension in ('png', 'pdf'):
+        path = figures_dir / f'snr_pretraining_vs_classification_all.{extension}'
+        fig.savefig(path, dpi=300, facecolor='white', bbox_inches='tight')
+        print(f'Wrote {path}')
+    plt.close(fig)
+    print(f'Valid SNR values: pretraining={len(arrays[0])}, classification all={len(arrays[1])}')
+
+
 def main(argv: list[str] | None = None) -> None:
-    run_analysis(parse_args(argv))
+    args = parse_args(argv)
+    if not args.plot_snr_only:
+        run_analysis(args)
+    plot_dataset_snr(args)
 
 if __name__ == '__main__':
     main()
