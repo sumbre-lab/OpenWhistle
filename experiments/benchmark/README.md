@@ -1,6 +1,6 @@
 # OpenWhistle benchmark
 
-Frozen **audio embeddings** followed by **linear probes** (logistic regression) on the expert-annotated Hugging Face datasets. This folder reproduces the paper’s **classification** and **detection** benchmark numbers.
+Frozen **audio embeddings** followed by **linear probes** (logistic regression) on the expert-annotated Hugging Face datasets. This folder reproduces the paper’s whistle type **classification** and **detection** benchmark numbers.
 
 <p align="center">
   <img src="fig_tasks.png" alt="Classification vs detection tasks" width="720">
