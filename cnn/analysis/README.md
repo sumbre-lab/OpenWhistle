@@ -14,7 +14,11 @@ The script computes SNR directly from the audio of the datasets in the
   train, validation and test splits (all ten classes).
 
 Each published audio row contributes one SNR estimate. The default processes all
-rows, streamed one at a time; it does not load the full corpus into RAM. The full
+rows, streamed with a bounded queue; it does not load the full corpus into RAM.
+Audio decoding and SNR calculations run concurrently on up to 16 CPU workers
+by default. `--workers 1` runs sequentially; `--workers 8` reduces CPU and memory
+use. The GPU is not used by this SciPy-based estimator. Parallel execution keeps
+the same scores and row order as sequential execution. The full
 run reads a large amount of audio and can take substantial time. A diagnostic
 using the first three rows of each dataset can be run separately:
 

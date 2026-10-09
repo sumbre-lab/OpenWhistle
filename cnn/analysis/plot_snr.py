@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+from collections import Counter, deque
+from concurrent.futures import ThreadPoolExecutor
 import csv
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -31,34 +33,65 @@ def parse_args(argv=None):
     parser.add_argument('--limit', type=int, default=0, help='First N audio rows per dataset for a diagnostic (0 = all).')
     parser.add_argument('--pretraining-revision', default='main')
     parser.add_argument('--classification-revision', default='main')
+    parser.add_argument('--workers', type=int, default=min(16, os.cpu_count() or 1),
+                        help='Concurrent CPU SNR calculations (default: up to 16).')
     parser.add_argument('--plot-only', action='store_true', help='Reuse this script’s computed CSVs and provenance; no HF access.')
     args = parser.parse_args(argv)
     if args.limit < 0:
         parser.error('--limit must be nonnegative.')
+    if args.workers < 1:
+        parser.error('--workers must be positive.')
     return args
 
 
-def compute_dataset(repo, config, splits, revision, limit, output, snr_config):
+def compute_row(task):
+    split, index, payload, config = task
+    audio, fs = decode_audio(payload)
+    snr, status, frames = estimate_snr(audio, fs, config)
+    return dict(split=split, index=index, sampling_rate=fs,
+                duration_s=len(audio) / fs, snr_db=snr,
+                status=status, n_stft_frames_used=frames)
+
+
+def bounded_results(pool, tasks, max_pending):
+    """Overlap reading and computation without queuing the whole audio corpus."""
+    pending = deque()
+    try:
+        for task in tasks:
+            pending.append(pool.submit(compute_row, task))
+            if len(pending) >= max_pending:
+                yield pending.popleft().result()
+        while pending:
+            yield pending.popleft().result()
+    finally:
+        for future in pending:
+            future.cancel()
+
+
+def compute_dataset(repo, config, splits, revision, limit, output, snr_config, workers=1):
     from datasets import Audio, load_dataset
     from pyarrow.dataset import ParquetFragmentScanOptions
     values, counts, processed = [], Counter(), 0
     temporary = output.with_suffix('.csv.tmp')
-    with temporary.open('w', newline='', encoding='utf-8') as handle:
+    with ThreadPoolExecutor(max_workers=workers) as pool, temporary.open('w', newline='', encoding='utf-8') as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDS)
         writer.writeheader()
         for split in splits:
             dataset = load_dataset(repo, name=config, split=split, revision=revision,
-                                   streaming=True, columns=['audio'], batch_size=1,
+                                   streaming=True, columns=['audio'], batch_size=workers,
                                    fragment_scan_options=ParquetFragmentScanOptions(pre_buffer=False))
             dataset = dataset.cast_column('audio', Audio(decode=False))
             if limit:
                 dataset = dataset.take(limit - processed)
-            for index, row in enumerate(tqdm(dataset, desc=f'{repo}/{split}', unit='clip')):
-                audio, fs = decode_audio(row['audio'])
-                snr, status, frames = estimate_snr(audio, fs, snr_config)
-                writer.writerow(dict(split=split, index=index, sampling_rate=fs,
-                                     duration_s=len(audio) / fs, snr_db=snr,
-                                     status=status, n_stft_frames_used=frames))
+            split_info = getattr(dataset.info, 'splits', None) if hasattr(dataset, 'info') else None
+            total = split_info[split].num_examples if split_info and split in split_info else None
+            if limit and total is not None:
+                total = min(total, limit - processed)
+            tasks = ((split, index, row['audio'], snr_config) for index, row in enumerate(dataset))
+            records = bounded_results(pool, tasks, max_pending=workers * 2)
+            for record in tqdm(records, total=total, desc=f'{repo}/{split}', unit='clip'):
+                writer.writerow(record)
+                status, snr = record['status'], record['snr_db']
                 counts[status] += 1
                 processed += 1
                 if status == 'ok' and np.isfinite(snr):
@@ -109,16 +142,16 @@ def main(argv=None):
         config = SNRConfig()
         protocol = {'collection': COLLECTION, 'estimator': config.to_dict(),
                     'method': 'spectrogram-ridge, noise-subtracted flanking-band SNR; one value per full audio row',
-                    'limit_per_dataset': args.limit, 'datasets': {}}
+                    'limit_per_dataset': args.limit, 'workers': args.workers, 'datasets': {}}
         # A partial failed recomputation must not be presented as an earlier completed run.
         if protocol_path.exists():
             protocol_path.unlink()
         for group, (repo, subset, splits) in SOURCES.items():
             requested = args.pretraining_revision if group == 'pretraining' else args.classification_revision
             revision = HfApi().dataset_info(repo, revision=requested).sha
-            print(f'Computing {group}: {repo}, config={subset}, revision={revision}', flush=True)
+            print(f'Computing {group}: {repo}, config={subset}, revision={revision}, workers={args.workers}', flush=True)
             values, summary = compute_dataset(repo, subset, splits, revision, args.limit,
-                                              args.output_dir / f'snr_{group}.csv', config)
+                                              args.output_dir / f'snr_{group}.csv', config, workers=args.workers)
             arrays.append(values)
             protocol['datasets'][group] = dict(repo=repo, config=subset, splits=splits,
                                                revision=revision, **summary)

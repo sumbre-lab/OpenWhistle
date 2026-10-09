@@ -69,6 +69,32 @@ class SNRTests(unittest.TestCase):
     def test_full_corpus_is_default(self):
         self.assertEqual(parse_args([]).limit, 0)
 
+    def test_parallel_scores_and_order_match_serial(self):
+        payloads = []
+        fs = 96000
+        t = np.arange(fs // 4) / fs
+        rng = np.random.default_rng(17)
+        for frequency in (5000, 9000, 12000, 17000):
+            buf = BytesIO()
+            sf.write(buf, np.sin(2 * np.pi * frequency * t) + .1 * rng.normal(size=len(t)),
+                     fs, format='WAV', subtype='FLOAT')
+            payloads.append({'audio': {'bytes': buf.getvalue()}})
+
+        class Stream(list):
+            def cast_column(self, *args):
+                return self
+
+        with tempfile.TemporaryDirectory() as tmp, patch('datasets.load_dataset', return_value=Stream(payloads)):
+            results = []
+            for workers in (1, 4):
+                path = Path(tmp) / f'{workers}.csv'
+                scores, summary = compute_dataset('org/ds', 'all', ('train',), 'sha',
+                                                  0, path, SNRConfig(), workers=workers)
+                results.append((path.read_bytes(), scores, summary))
+            self.assertEqual(results[0][0], results[1][0])
+            np.testing.assert_array_equal(results[0][1], results[1][1])
+            self.assertEqual(results[0][2], results[1][2])
+
 
 if __name__ == '__main__':
     unittest.main()
