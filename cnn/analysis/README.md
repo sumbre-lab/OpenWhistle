@@ -1,4 +1,8 @@
-# Audio-derived SNR figure
+# CNN error analysis and audio-derived SNR
+
+Run the commands below from the repository root in the CNN environment.
+
+## SNR figure
 
 ```bash
 python cnn/analysis/plot_snr.py
@@ -43,12 +47,9 @@ Silent, too-short or unmeasurable clips receive an explicit invalid status and
 are excluded from the violins; their counts remain in the protocol. Unexpected
 decoding/download errors stop the run rather than silently dropping audio.
 
-These are estimated band SNRs, not reference SNRs obtained from isolated clean
-signals. The method and population differ from the historical CREPE-based CSVs:
-pretraining now uses published sequences rather than the old 4,000 sampled
-windows. The script ignores both local manuscript CSVs and any HF `snr_db` or
-F0 columns; it recomputes from audio in both groups. Numerical agreement with
-the original panel F is not claimed.
+These are estimated band SNRs, calculated from each published audio row.
+The script recomputes from audio in both groups, using the same estimator.
+Existing HF `snr_db` and F0 columns are not used.
 
 ## Outputs
 
@@ -73,12 +74,41 @@ CSV files and protocol in the chosen output directory, and uses no network.
 
 ## False-negative analysis
 
-The original CNN error-analysis script is also available:
+Evaluate the published CNN checkpoint on the `dolphinteam/OpenWhistle-CNN`
+test split and describe the whistle clips it detects or misses:
 
 ```bash
 python cnn/analysis/analyze_missed_whistles.py
 ```
 
-Its default reports and plots go to `cnn/runs/analysis/`, anchored to the
-checkout. This command evaluates the CNN; `plot_snr.py` generates the dataset
-SNR comparison described above.
+The default decision threshold is 0.5. Use `--checkpoint-path /path/to/model.pt`
+to evaluate another checkpoint, or `--cpu-only` to run inference on CPU.
+
+Outputs go to `cnn/runs/analysis/`, anchored to the checkout (override with
+`--output-dir`):
+
+- `test_whistle_measures.csv`: predictions, scores and acoustic measures for
+  each whistle-labelled test clip;
+- `missed_whistles_summary.json`: confusion counts over all test rows and
+  summaries of detected and missed whistles;
+- `figures/snr_and_score_violin.png`;
+- `figures/frequency_descriptors_violin.png`;
+- `figures/miss_rate_by_whistle_type.png`;
+- `figures/miss_rate_by_recording.png`.
+
+This command evaluates the CNN; `plot_snr.py` generates the dataset SNR
+distributions described above.
+
+## Include SNR in the manuscript figure
+
+After a completed full-corpus run:
+
+```bash
+python datasets_figures/plot_classification_overview.py
+```
+
+Panel F uses these same computed CSVs: Pretraining on the left and
+Classification (all) on the right. Use `--snr-dir /path/to/completed/snr` to
+select another completed run. The figure rejects diagnostic/partial inputs
+and records its sources beside the PNG/PDF. Other panels use classification
+metadata from the same HF revision and the existing auxiliary statistics.

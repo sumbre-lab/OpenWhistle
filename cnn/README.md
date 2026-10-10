@@ -14,14 +14,14 @@ cnn/
 ├── requirements.txt
 ├── utils/                          # shared model, data, metrics and reports
 ├── learning_curve/                 # training-set size experiment
-│   ├── run_learning_curve.py
-│   └── results/                    # manuscript curve, CSVs and protocol
-├── analysis/                       # audio-derived SNR figure
-└── external/                       # WMMSD/DCLDE presets and local preparation
+│   └── run_learning_curve.py
+├── analysis/                       # missed-whistle analysis and SNR figure
+├── external/                       # WMMSD/DCLDE presets and local preparation
+└── runs/                           # generated results, figures and checkpoints
 ```
 
-Start with the three commands below. The [learning curve](learning_curve/README.md),
-[SNR figure](analysis/README.md) and
+Start with the commands below. The [learning curve](learning_curve/README.md),
+[missed-whistle analysis and SNR figure](analysis/README.md) and
 [external datasets](external/README.md) have their own instructions.
 Run the examples from the repository root. Use `--help` to inspect each CLI.
 
@@ -109,12 +109,18 @@ Training writes `reports/run_summary.json`; test-only evaluation writes
 windows, rather than complete recordings or whistle events. The positive class
 is whistle (label 1); CNN F1 is the binary whistle-class F1.
 
-The tracked learning-curve results are in
-[learning_curve/results/](learning_curve/results/). Start with
-[the summary CSV](learning_curve/results/learning_curve_summary.csv) or
-[the figure](learning_curve/results/learning_curve_test_f1.png). Detailed
-historical diagnostics are in the [local archive](../docs/results-organization.md).
-Stored run metadata retains its original paths.
+The generated outputs are organized as follows:
+
+| Directory | Contents |
+|---|---|
+| `runs/reports/`, `runs/figures/` | Published-checkpoint evaluation, ROC and confusion matrix |
+| `runs/learning_curve/` | Per-seed reports and checkpoints, aggregate CSVs and learning-curve figure |
+| `runs/analysis/` | Missed-whistle measurements, summary and figures |
+| `runs/snr/` | Audio-derived SNR CSVs, protocol and PNG/PDF |
+| `runs/retrain-seed7-*/` | Independent training run, model, metrics, settings and log |
+
+See the [learning-curve instructions](learning_curve/README.md) and
+[analysis instructions](analysis/README.md) for reproduction commands.
 
 ## Shared implementation
 
