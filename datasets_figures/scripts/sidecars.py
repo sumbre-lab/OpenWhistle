@@ -8,8 +8,8 @@ Used by ``plot_* --refresh-data`` and optional CLI::
     python datasets_figures/scripts/sidecars.py download --repo-id org/ds --filename f.csv --dest out.csv
 
 Environment variables for ``refresh_classification_sidecars`` / ``refresh_dataset_overview_sidecars``:
-``OPENWHISTLE_IWI_HF_IDS``, ``OPENWHISTLE_IWI_HF_SUBSET``, ``OPENWHISTLE_SNR_CLASSIFICATION_*``,
-``OPENWHISTLE_SNR_DETECTION_*``, ``OPENWHISTLE_RECORDING_HOURS_*``, ``OPENWHISTLE_CONFUSION_MATRIX_*``.
+``OPENWHISTLE_IWI_HF_IDS``, ``OPENWHISTLE_IWI_HF_SUBSET``,
+``OPENWHISTLE_RECORDING_HOURS_*``, ``OPENWHISTLE_CONFUSION_MATRIX_*``.
 """
 
 from __future__ import annotations
@@ -21,6 +21,10 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Iterable
+
+_REPO = Path(__file__).resolve().parents[2]
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
 
 import numpy as np
 import pandas as pd
@@ -80,20 +84,6 @@ def refresh_classification_sidecars(data_dir: Path, *, include_audio: bool = Tru
     else:
         print("[refresh] OPENWHISTLE_IWI_HF_IDS unset; skipping inter-whistle CSV generation.")
 
-    repo = (os.environ.get("OPENWHISTLE_SNR_CLASSIFICATION_REPO_ID") or "").strip()
-    fn = (os.environ.get("OPENWHISTLE_SNR_CLASSIFICATION_FILENAME") or "").strip()
-    if repo and fn:
-        _hub_download_to(repo, fn, data_dir / "snr_classification.csv")
-    else:
-        print("[refresh] SNR classification hub env unset; keeping existing snr_classification.csv if any.")
-
-    repo2 = (os.environ.get("OPENWHISTLE_SNR_DETECTION_REPO_ID") or "").strip()
-    fn2 = (os.environ.get("OPENWHISTLE_SNR_DETECTION_FILENAME") or "").strip()
-    if repo2 and fn2:
-        _hub_download_to(repo2, fn2, data_dir / "snr_detection_windows.csv")
-    else:
-        print("[refresh] SNR detection hub env unset; keeping existing snr_detection_windows.csv if any.")
-
 
 def refresh_dataset_overview_sidecars(*, recording_csv: Path, confusion_csv: Path) -> None:
     repo = (os.environ.get("OPENWHISTLE_RECORDING_HOURS_REPO_ID") or "").strip()
@@ -115,7 +105,7 @@ def refresh_dataset_overview_sidecars(*, recording_csv: Path, confusion_csv: Pat
         rev = (os.environ.get("OPENWHISTLE_CONFUSION_MATRIX_REVISION") or "").strip() or None
         _hub_download_to(repo_cm, fn_cm, confusion_csv, repo_type=rtype, revision=rev)
     else:
-        print("[refresh] Confusion-matrix hub env unset; keeping existing CNN_test_confusion_matrix.csv if any.")
+        print(f"[refresh] Confusion-matrix hub env unset; keeping {confusion_csv} if present.")
 
 
 def download_hub_csv(
@@ -410,15 +400,7 @@ def build_iwi_rows_from_hf_ids(
 # ── Optional CLI (replaces separate scripts under ``scripts/``) ──────────────
 
 
-def _ensure_repo_on_path() -> None:
-    root = Path(__file__).resolve().parents[2]
-    s = str(root)
-    if s not in sys.path:
-        sys.path.insert(0, s)
-
-
 def _cli_main() -> None:
-    _ensure_repo_on_path()
     ap = argparse.ArgumentParser(description="Sidecar CSV helpers for datasets_figures plots.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 

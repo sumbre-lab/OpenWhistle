@@ -1,7 +1,7 @@
 """Render ``fig_dataset_overview`` (2×2 pretraining overview).
 
 Recording-hour statistics are taken from ``data/pretraining_recording_hours.csv`` (not fully
-reconstructible from the public segment HF set). Optional confusion matrix CSV for panel D.
+reconstructible from the public segment HF set). CNN evaluation provides panel D's confusion matrix.
 
 With ``--refresh-data``, optional Hub downloads run when the environment variables documented in
 ``datasets_figures.scripts.sidecars`` are set.
@@ -38,8 +38,8 @@ def main() -> None:
     ap.add_argument(
         "--confusion-csv",
         type=Path,
-        default=DATA_DIR / "CNN_test_confusion_matrix.csv",
-        help="Path to CNN_test_confusion_matrix.csv (optional).",
+        default=_REPO / "cnn/runs/reports/test_confusion_matrix.csv",
+        help="CNN evaluation matrix CSV (defaults to cnn/runs/reports/test_confusion_matrix.csv).",
     )
     ap.add_argument(
         "--output-dir",
@@ -53,6 +53,9 @@ def main() -> None:
         help="Refresh optional Hub CSV sidecars (see scripts/sidecars.py docstring).",
     )
     args = ap.parse_args()
+    args.recording_csv = args.recording_csv.expanduser()
+    args.confusion_csv = args.confusion_csv.expanduser()
+    args.output_dir = args.output_dir.expanduser()
 
     if args.refresh_data:
         refresh_dataset_overview_sidecars(
@@ -70,7 +73,9 @@ def main() -> None:
     print(f"[dataset_overview] Total vocalisation duration: {total_voc_h:.2f} h")
 
     if not args.confusion_csv.is_file():
-        print(f"[dataset_overview] No confusion matrix at {args.confusion_csv}; panel D placeholder.")
+        ap.error(f"Confusion matrix not found: {args.confusion_csv}. "
+                 "Run python cnn/train.py --test-only --no-wandb-enabled first, "
+                 "or provide --confusion-csv.")
 
     plot_combined(df, args.output_dir, confusion_matrix_csv=args.confusion_csv)
 

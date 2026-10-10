@@ -1,11 +1,11 @@
 """Render ``fig_classification_overview`` from the HF classification dataset plus CSV sidecars.
 
 Loads ``dolphinteam/OpenWhistle-Classification-Finetuning`` (config ``all``) by default.
-Whistle-sequence durations for panel B are read from the HF pretraining segments dataset when
-possible; otherwise from ``data/audio_segment_durations.csv``.
+Whistle-sequence durations for panel B use ``data/audio_segment_durations.csv``
+when available; otherwise they are read from the HF pretraining dataset.
 
-SNR and inter-whistle panels use CSVs under ``data/`` (refresh with ``--refresh-data`` and the
-env vars in ``datasets_figures.scripts.sidecars`` where applicable).
+Panel F reads the completed audio-derived SNR run under ``cnn/runs/snr/``.
+Other auxiliary panels use CSVs under ``data/``.
 
 Examples::
 
@@ -16,6 +16,8 @@ Examples::
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -25,34 +27,31 @@ if str(_REPO) not in sys.path:
 
 import numpy as np
 import pandas as pd
-from datasets import DatasetDict, load_dataset
+from datasets import DatasetDict, IterableDatasetDict, load_dataset
 
-from datasets_figures.scripts.classification_overview import plot_classification_overview_figure
+from datasets_figures.scripts.classification_overview import load_snr_comparison, plot_classification_overview_figure
 from datasets_figures.scripts.paths import CLASSIFICATION_HF_ID, DATA_DIR, PRETRAINING_SEGMENTS_HF_ID
 from datasets_figures.scripts.sidecars import refresh_classification_sidecars, segment_duration_seconds_from_hf
 
 
 def _sequence_durations_s(*, data_dir: Path) -> np.ndarray | None:
+    seq_path = data_dir / "audio_segment_durations.csv"
+    if seq_path.is_file():
+        sdf = pd.read_csv(seq_path)
+        if "duration_s" in sdf.columns:
+            values = pd.to_numeric(sdf["duration_s"], errors="coerce").dropna().to_numpy(dtype=float)
+            if len(values):
+                print(f"[classification] Sequence durations: {len(values)} values from {seq_path.name}.")
+                return values
     try:
         arr = segment_duration_seconds_from_hf(hf_id=PRETRAINING_SEGMENTS_HF_ID)
     except Exception as exc:
-        print(f"[classification] HF pretraining segment durations failed ({exc}); trying CSV.")
+        print(f"[classification] HF pretraining segment durations failed ({exc}); panel B will be empty.")
         arr = np.array([], dtype=float)
     if len(arr):
         print(f"[classification] Sequence durations: {len(arr)} values from HF ({PRETRAINING_SEGMENTS_HF_ID}).")
         return arr
-    seq_path = data_dir / "audio_segment_durations.csv"
-    if not seq_path.is_file():
-        return None
-    sdf = pd.read_csv(seq_path)
-    if "duration_s" not in sdf.columns:
-        return None
-    sdf["duration_s"] = pd.to_numeric(sdf["duration_s"], errors="coerce")
-    sdf = sdf.dropna(subset=["duration_s"])
-    if not len(sdf):
-        return None
-    print(f"[classification] Sequence durations: {len(sdf)} values from {seq_path.name}.")
-    return sdf["duration_s"].to_numpy(dtype=float)
+    return None
 
 
 def main() -> None:
@@ -60,10 +59,14 @@ def main() -> None:
     ap.add_argument("--hf-id", default=CLASSIFICATION_HF_ID, help="Hugging Face classification dataset id.")
     ap.add_argument("--config", default="all", help="Dataset config name (e.g. all).")
     ap.add_argument(
+        "--snr-dir", type=Path, default=_REPO / "cnn/runs/snr",
+        help="Completed full-corpus plot_snr.py outputs, including snr_protocol.json.",
+    )
+    ap.add_argument(
         "--data-dir",
         type=Path,
         default=DATA_DIR,
-        help="Directory with auxiliary CSVs (SNR, IWI, optional segment durations).",
+        help="Directory with auxiliary IWI and optional sequence-duration CSVs.",
     )
     ap.add_argument(
         "--output-dir",
@@ -77,14 +80,30 @@ def main() -> None:
         help="Regenerate HF-backed CSV sidecars (see scripts/sidecars.py docstring).",
     )
     args = ap.parse_args()
+    args.snr_dir = args.snr_dir.expanduser()
+    args.data_dir = args.data_dir.expanduser()
+    args.output_dir = args.output_dir.expanduser()
+    try:
+        snr_pretraining, snr_classification, snr_protocol = load_snr_comparison(args.snr_dir)
+    except (OSError, ValueError, KeyError) as exc:
+        ap.error(f"Cannot use panel F inputs: {exc}. Run python cnn/analysis/plot_snr.py first.")
+    source = snr_protocol["datasets"]["classification_all"]
+    if (args.hf_id, args.config) != (source["repo"], source["config"]):
+        ap.error("Classification dataset/config must match the SNR protocol for panel F.")
 
     if args.refresh_data:
         refresh_classification_sidecars(args.data_dir)
 
+    iwi = args.data_dir / "inter_detected_whistle_intervals.csv"
+    if not iwi.is_file():
+        ap.error(f"Inter-whistle intervals CSV not found: {iwi}. "
+                 "Use the supplied data/ directory or regenerate it with scripts/sidecars.py iwi.")
+
     print(f"[classification] Loading {args.hf_id!r} (config={args.config!r})")
-    ds = load_dataset(args.hf_id, args.config, trust_remote_code=True)
-    if not isinstance(ds, DatasetDict):
-        ds = DatasetDict({"train": ds})
+    ds = load_dataset(args.hf_id, args.config, revision=source["revision"], streaming=True,
+                      columns=["label", "name", "duration"])
+    if not isinstance(ds, (DatasetDict, IterableDatasetDict)):
+        ds = {"train": ds}
 
     # Concatenate every split (train / validation / test / …), not only train+test.
     _order = ("train", "validation", "test", "dev")
@@ -99,12 +118,12 @@ def main() -> None:
     label_names = list(first.features["label"].names)
     n_classes = len(label_names)
 
-    parts = [ds[s].to_pandas() for s in splits]
-    df_all = pd.concat(parts, ignore_index=True)
+    frames = {s: pd.DataFrame(ds[s]) for s in splits}
+    df_all = pd.concat(list(frames.values()), ignore_index=True)
 
-    n_train = len(ds["train"]) if "train" in ds else 0
-    n_test = len(ds["test"]) if "test" in ds else 0
-    print(f"[classification] rows: {', '.join(f'{s}={len(ds[s])}' for s in splits)}  classes={n_classes}")
+    n_train = len(frames["train"]) if "train" in frames else 0
+    n_test = len(frames["test"]) if "test" in frames else 0
+    print(f"[classification] rows: {', '.join(f'{s}={len(frames[s])}' for s in splits)}  classes={n_classes}")
 
     all_labels = df_all[["label"]]
     total_counts = all_labels["label"].value_counts().reindex(range(n_classes), fill_value=0)
@@ -115,16 +134,14 @@ def main() -> None:
     durations = pd.to_numeric(df_all["duration"], errors="coerce").dropna().to_numpy()
     sequence_durations = _sequence_durations_s(data_dir=args.data_dir)
 
-    snr_csv = args.data_dir / "snr_classification.csv"
-    if not snr_csv.is_file():
-        print(f"[classification] Warning: no {snr_csv.name}; panel F gold violin may be empty.")
+    if len(df_all) != source["processed"]:
+        raise ValueError("Classification metadata and SNR run have different row counts.")
+    print(f"[classification] Panel F: {len(snr_pretraining)} pretraining and "
+          f"{len(snr_classification)} classification (all) valid SNR values.")
 
-    iwi = args.data_dir / "inter_detected_whistle_intervals.csv"
-    if not iwi.is_file():
-        print(
-            f"[classification] Note: no {iwi.name}. Panel A placeholder — use "
-            "`--refresh-data` with OPENWHISTLE_IWI_HF_IDS or copy predictions outputs."
-        )
+    if sequence_durations is None or len(sequence_durations) == 0:
+        ap.error("No sequence durations available for panel B. "
+                 "Provide audio_segment_durations.csv in --data-dir.")
 
     plot_classification_overview_figure(
         output_dir=args.output_dir,
@@ -138,7 +155,25 @@ def main() -> None:
         df_all=df_all,
         durations=durations if len(durations) else np.array([]),
         sequence_durations=sequence_durations,
-        snr_csv=snr_csv,
+        snr_pretraining=snr_pretraining,
+        snr_classification=snr_classification,
+    )
+    inputs = [args.snr_dir / "snr_pretraining.csv",
+              args.snr_dir / "snr_classification_all.csv",
+              args.snr_dir / "snr_protocol.json"]
+    sidecars = [args.data_dir / "inter_detected_whistle_intervals.csv",
+                args.data_dir / "audio_segment_durations.csv"]
+    provenance = {
+        "classification": source,
+        "snr_protocol": snr_protocol,
+        "snr_inputs_sha256": {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
+        "auxiliary_csv_sha256": {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest()
+                                 for p in sidecars if p.is_file()},
+        "valid_snr_counts": {"pretraining": len(snr_pretraining), "classification_all": len(snr_classification)},
+        "snr_display_range_db": [-10, 36],
+    }
+    (args.output_dir / "fig_classification_overview_sources.json").write_text(
+        json.dumps(provenance, indent=2) + "\n"
     )
     print("[classification] Done.")
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import json
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -43,7 +45,7 @@ def _panel_label(ax, letter: str, *, fontsize: float = 20) -> None:
     )
 
 
-# SNR quality bands (dB) for classification_old stats CSV
+# Original panel F visual reference bands (dB)
 SNR_THRESHOLDS = (3.0, 6.0, 10.0)
 SNR_BAND_LABELS = (
     ("poor", "< 3 dB", "#f5cac9"),
@@ -112,10 +114,41 @@ def load_snr_db_ok_only(snr_csv: Path):
         return None
     df = pd.read_csv(snr_csv)
     ok = df["status"].astype(str) == "ok"
-    s = pd.to_numeric(df.loc[ok, "snr_db"], errors="coerce").dropna()
+    s = pd.to_numeric(df.loc[ok, "snr_db"], errors="coerce")
+    s = s[np.isfinite(s)]
     if len(s) == 0:
         return None
     return s.to_numpy(dtype=float)
+
+
+def load_snr_comparison(snr_dir: Path) -> tuple[np.ndarray, np.ndarray, dict]:
+    """Read a completed full-corpus calculation; reject partial/diagnostic inputs."""
+    protocol = json.loads((snr_dir / "snr_protocol.json").read_text())
+    if protocol["limit_per_dataset"] != 0:
+        raise ValueError("Panel F requires a full-corpus SNR run, not a diagnostic subset.")
+    expected = {
+        "pretraining": ("dolphinteam/OpenWhistle-Pretraining", "default", ["train", "validation"]),
+        "classification_all": ("dolphinteam/OpenWhistle-Classification-Finetuning", "all",
+                               ["train", "validation", "test"]),
+    }
+    arrays = []
+    for group, (repo, config, splits) in expected.items():
+        metadata = protocol["datasets"][group]
+        if (metadata["repo"], metadata["config"], metadata["splits"]) != (repo, config, splits):
+            raise ValueError(f"Unexpected dataset population in SNR protocol: {group}")
+        if not metadata.get("revision"):
+            raise ValueError(f"Missing dataset revision for {group}")
+        csv_path = snr_dir / f"snr_{group}.csv"
+        data = pd.read_csv(csv_path)
+        if len(data) != metadata["processed"] or dict(Counter(data["status"])) != metadata["status_counts"]:
+            raise ValueError(f"SNR CSV does not match its completed protocol: {csv_path}")
+        if set(data["split"]) != set(splits) or data.duplicated(["split", "index"]).any():
+            raise ValueError(f"Missing splits or duplicate SNR row identifiers: {csv_path}")
+        values = load_snr_db_ok_only(csv_path)
+        if values is None or len(values) < 2 or len(values) != metadata["status_counts"].get("ok", 0):
+            raise ValueError(f"Missing or nonfinite valid SNR measurements: {csv_path}")
+        arrays.append(values)
+    return arrays[0], arrays[1], protocol
 
 
 def load_inter_detected_whistle_intervals_csv(csv_path: Path) -> np.ndarray:
@@ -153,7 +186,7 @@ def draw_inter_whistle_interval_hist_on_ax(
             0.5,
             0.5,
             "Missing or empty\ninter_detected_whistle_intervals.csv\n"
-            "(run scripts/pretraining/stats.py)",
+            "(see datasets_figures/README.md)",
             ha="center",
             va="center",
             transform=ax.transAxes,
@@ -204,78 +237,6 @@ def draw_inter_whistle_interval_hist_on_ax(
     # (intentionally no n= annotation for this panel)
 
 
-def draw_class_distribution_on_ax(
-    ax,
-    n_classes: int,
-    label_names: list,
-    total_sorted: np.ndarray,
-    names_sorted: list,
-    n_train: int,
-    n_test: int,
-    *,
-    compact: bool = False,
-    ylabel: str = "Count",
-) -> None:
-    import seaborn as sns
-
-    fs_t = 11 if compact else 13
-    fs_l = 8 if compact else 11
-    x = np.arange(n_classes)
-    width = 0.55
-    ymax = float(total_sorted.max()) if len(total_sorted) else 1.0
-    total_bar = float(np.sum(total_sorted)) if len(total_sorted) else 1.0
-
-    for i, (count, name) in enumerate(zip(total_sorted, names_sorted)):
-        orig_idx = label_names.index(name)
-        col = CLASS_COLORS[orig_idx % len(CLASS_COLORS)]
-        ax.bar(x[i], count, width, color=col, edgecolor="white", linewidth=0.5)
-        pct = 100.0 * float(count) / total_bar if total_bar > 0 else 0.0
-        fs_n = 8 if compact else 10
-        ax.text(
-            x[i],
-            count + ymax * 0.01,
-            str(int(count)),
-            ha="center",
-            va="bottom",
-            fontsize=fs_n,
-            fontweight="normal",
-            color="#111111",
-        )
-        ax.text(
-            x[i],
-            count + ymax * 0.078,
-            f"{pct:.1f}%",
-            ha="center",
-            va="bottom",
-            fontsize=fs_n,
-            fontweight="bold",
-            color="#111111",
-        )
-
-    display_names = [_whistle_type_display_name(n) for n in names_sorted]
-    ax.set_xticks(x)
-    _rot = 35 if compact else 15
-    ax.set_xticklabels(display_names, fontsize=fs_l, rotation=_rot, ha="right")
-    ax.set_ylabel(ylabel, fontsize=fs_l)
-    ax.set_xlabel("Whistle type", fontsize=fs_l, labelpad=4 if compact else 8)
-    ax.set_title("Class distribution", fontsize=fs_t, fontweight="bold", pad=6 if compact else 12)
-    ax.set_xlim(-0.5, n_classes - 0.5)
-    ax.set_ylim(0, ymax * (1.32 if compact else 1.30) if ymax > 0 else 1.0)
-    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
-    ax.set_axisbelow(True)
-    sns.despine(ax=ax)
-    total = int(total_sorted.sum())
-    ax.text(
-        0.02,
-        0.97,
-        f"n={total}",
-        transform=ax.transAxes,
-        fontsize=7 if compact else 9,
-        va="top",
-        color="#555555",
-    )
-
-
 def draw_class_distribution_coast_on_ax(
     ax,
     n_classes: int,
@@ -289,7 +250,7 @@ def draw_class_distribution_coast_on_ax(
     ylabel: str = "Count",
     font_extra: int = 0,
 ) -> None:
-    """Class distribution bars: NSW vs SW use the same two colours as the coast pie chart."""
+    """Class distribution bars: NSW vs SW use one colour per group."""
     import matplotlib.patches as mpatches
     import seaborn as sns
 
@@ -440,47 +401,6 @@ def draw_duration_histogram_on_ax(
     # (intentionally no n= annotation for this panel)
 
 
-def draw_nsw_sw_pie_on_ax(ax, df_all, label_names: list, *, compact: bool = False) -> None:
-    """Pie chart of NSW vs SW counts from integer ``label`` and ``label_names``."""
-    fs_t = 11 if compact else 13
-    nsw = sw = 0
-    for lab in df_all["label"].dropna():
-        name = label_names[int(lab)]
-        c = _coast_from_label_name(name)
-        if c == "NSW":
-            nsw += 1
-        elif c == "SW":
-            sw += 1
-
-    sizes = [nsw, sw]
-    if sum(sizes) == 0:
-        ax.set_title("NSW / SW (no data)", fontsize=fs_t, fontweight="bold")
-        return
-
-    colors = [CLASS_COLORS[0], CLASS_COLORS[2]]
-    explode = (0.02, 0.02)
-    ax.pie(
-        sizes,
-        explode=explode,
-        labels=["NSW", "SW"],
-        colors=colors,
-        autopct="%1.1f%%",
-        startangle=90,
-        textprops={"fontsize": 8 if compact else 10},
-        wedgeprops={"linewidth": 0.6, "edgecolor": "white"},
-    )
-    ax.axis("equal")
-    ax.set_title("NSW vs SW", fontsize=fs_t, fontweight="bold", pad=6 if compact else 10)
-    ax.annotate(
-        f"n = {sum(sizes)}",
-        xy=(0.5, -0.06),
-        xycoords="axes fraction",
-        ha="center",
-        fontsize=7 if compact else 9,
-        color="#555555",
-    )
-
-
 # Time range for expedition-date plots (inclusive day bounds)
 WHISTLE_TIME_START = "2019-11-01"
 WHISTLE_TIME_END = "2020-03-31"
@@ -580,101 +500,6 @@ def draw_monthly_whistles_on_ax(
     # (intentionally no n= annotation for this panel)
 
 
-def draw_snr_violin_on_ax(ax, sub, sns, mpatches, *, compact: bool = False) -> bool:
-    """
-    Vertical SNR violins by coast on ``ax``. Returns False if no data (axes cleared).
-    """
-    fs_t = 11 if compact else 13
-    fs_l = 8 if compact else 11
-    snr_title_fs = max(9, fs_t - 2)
-    if sub is None or len(sub) == 0:
-        ax.set_title("SNR distribution", fontsize=snr_title_fs, fontweight="bold")
-        ax.text(
-            0.5,
-            0.5,
-            "SNR sidecar data unavailable",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-            fontsize=8,
-            color="#666666",
-        )
-        ax.set_axis_off()
-        return False
-
-    snr_all = sub["snr_db"].to_numpy()
-    y_lo, y_hi = -10.0, 36.0
-    t1, t2, t3 = SNR_THRESHOLDS
-
-    spans = [
-        (y_lo, t1, SNR_BAND_LABELS[0][2]),
-        (t1, t2, SNR_BAND_LABELS[1][2]),
-        (t2, t3, SNR_BAND_LABELS[2][2]),
-        (t3, y_hi, SNR_BAND_LABELS[3][2]),
-    ]
-    for lo, hi, color in spans:
-        ax.axhspan(lo, hi, facecolor=color, edgecolor="none", alpha=0.92, zorder=0)
-
-    coast_order = ["NSW", "SW"]
-    palette = {"NSW": CLASS_COLORS[0], "SW": CLASS_COLORS[2]}
-    sns.violinplot(
-        data=sub,
-        x="coast",
-        y="snr_db",
-        order=coast_order,
-        hue="coast",
-        hue_order=coast_order,
-        palette=palette,
-        dodge=False,
-        ax=ax,
-        inner="quart",
-        cut=0,
-        linewidth=0.8 if compact else 0.9,
-        saturation=0.82,
-        width=0.68 if compact else 0.72,
-        legend=False,
-        zorder=2,
-    )
-
-    thr_labels = {t1: "fair", t2: "good", t3: "very good"}
-    for tv in (t1, t2, t3):
-        ax.axhline(tv, color="#333333", linewidth=1.0, linestyle="--", zorder=3)
-        ax.text(
-            1.03,
-            tv,
-            thr_labels.get(tv, ""),
-            transform=ax.get_yaxis_transform(),
-            ha="left",
-            va="bottom",
-            fontsize=7 if compact else 9,
-            fontweight="bold",
-            color="#333333",
-            bbox=dict(facecolor="white", edgecolor="none", alpha=0.65, pad=1.5),
-            zorder=4,
-            clip_on=False,
-        )
-
-    ax.set_ylim(y_lo, y_hi)
-    ax.set_title("SNR distribution", fontsize=snr_title_fs, fontweight="bold", pad=6 if compact else 10)
-    ax.set_xlabel("Population", fontsize=fs_l)
-    ax.set_ylabel("SNR (dB)", fontsize=fs_l)
-    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
-    ax.set_axisbelow(True)
-    sns.despine(ax=ax)
-
-    ax.text(
-        0.02,
-        0.98,
-        f"n={len(snr_all)}",
-        transform=ax.transAxes,
-        va="top",
-        fontsize=7 if compact else 9,
-        color="#555555",
-        zorder=4,
-    )
-    return True
-
-
 def draw_snr_detection_vs_gold_on_ax(
     ax,
     snr_detection: np.ndarray | None,
@@ -687,7 +512,7 @@ def draw_snr_detection_vs_gold_on_ax(
     font_extra: int = 0,
     group_labels: tuple[str, str] = ("All", "Gold set"),
 ) -> bool:
-    """SNR violins: all detection windows (``All``) vs gold classification set."""
+    """Draw two SNR distributions with explicitly supplied population labels."""
     fe = max(0, int(font_extra))
     fs_t = (11 if compact else 13) + fe
     fs_l = (8 if compact else 11) + fe
@@ -704,7 +529,7 @@ def draw_snr_detection_vs_gold_on_ax(
         ax.text(
             0.5,
             0.5,
-            "Need snr_detection_windows.csv\nand/or snr_classification.csv",
+            "No valid SNR measurements",
             ha="center",
             va="center",
             transform=ax.transAxes,
@@ -737,7 +562,7 @@ def draw_snr_detection_vs_gold_on_ax(
     plot_df = pd.DataFrame(rows)
     order = [detection_label, gold_label]
     order = [g for g in order if g in plot_df["group"].unique()]
-    # Same NSW / SW base hues as the coast pie (CLASS_COLORS[0] vs [2])
+    # Consistent colours for the two populations.
     palette = {gold_label: CLASS_COLORS[0], detection_label: CLASS_COLORS[2]}
 
     if slim_violin:
@@ -803,6 +628,52 @@ def draw_snr_detection_vs_gold_on_ax(
     return True
 
 
+def draw_segment_duration_hist_ax(
+    ax: plt.Axes,
+    durations: np.ndarray,
+    *,
+    compact: bool = False,
+    font_extra: int = 0,
+) -> None:
+    import seaborn as sns
+
+    fe = max(0, int(font_extra))
+    median = float(np.median(durations))
+    mean = float(np.mean(durations))
+    x_min = 4.0
+    x_max = 50.0
+    bin_width = 1.0
+    bin_edges = np.arange(x_min, x_max + bin_width, bin_width)
+    durations_clip = durations[(durations >= x_min) & (durations <= x_max)]
+    sns.histplot(
+        durations_clip,
+        bins=bin_edges,
+        color="#4E79A7",
+        edgecolor="white",
+        linewidth=0.6,
+        ax=ax,
+    )
+    ax.axvline(median, color="#222222", linewidth=1.3, linestyle="-", label=f"Median: {median:.2f}s")
+    ax.axvline(mean, color="#222222", linewidth=1.3, linestyle="--", label=f"Mean: {mean:.2f}s")
+    title_fs = (11 if compact else 13) + fe
+    label_fs = (9 if compact else 11) + fe
+    ax.set_title(
+        "Audio segment duration histogram",
+        fontsize=title_fs,
+        fontweight="bold",
+        pad=8 if compact else 10,
+    )
+    ax.set_xlabel("Duration (seconds)", fontsize=label_fs)
+    ax.set_ylabel("Count", fontsize=label_fs)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
+    ax.set_axisbelow(True)
+    sns.despine(ax=ax)
+    ax.set_xlim(x_min, x_max)
+    ax.legend(framealpha=0.85, fontsize=(9 if compact else 10) + fe, loc="upper right")
+    if fe:
+        ax.tick_params(axis="both", labelsize=label_fs)
+
+
 
 def plot_classification_overview_figure(
     *,
@@ -817,24 +688,15 @@ def plot_classification_overview_figure(
     df_all: pd.DataFrame,
     durations: np.ndarray,
     sequence_durations: np.ndarray | None,
-    snr_csv: Path,
+    snr_pretraining: np.ndarray,
+    snr_classification: np.ndarray,
 ) -> None:
     """3×3 grid: row0 A,B,C; spacer row; row2 wide D (class), E, slim F (SNR)."""
     import matplotlib.gridspec as gridspec
     import seaborn as sns
 
-    from datasets_figures.scripts.pretraining_hf_snippets import (
-        draw_segment_duration_hist_ax,
-        load_snr_ok_detection_subframe,
-    )
-
     iwi_csv = data_dir / "inter_detected_whistle_intervals.csv"
     iwis = load_inter_detected_whistle_intervals_csv(iwi_csv)
-    snr_gold_all = load_snr_db_ok_only(snr_csv) if snr_csv.is_file() else None
-    snr_det: np.ndarray | None = None
-    det_df = load_snr_ok_detection_subframe(data_dir)
-    if det_df is not None and len(det_df):
-        snr_det = det_df["snr_db"].to_numpy(dtype=float)
 
     gold_span_title = "Expert-annotated dataset span\n(Nov 2019 - Mar 2020)"
     ox = CLASSIFICATION_OVERVIEW_FONT_EXTRA
@@ -939,14 +801,17 @@ def plot_classification_overview_figure(
         ax_e.set_axis_off()
     draw_snr_detection_vs_gold_on_ax(
         ax_f,
-        snr_det,
-        snr_gold_all,
+        snr_pretraining,
+        snr_classification,
         sns,
         compact=False,
         small_panel=False,
         slim_violin=True,
         font_extra=ox,
+        group_labels=("Pretraining", "Classification\n(all)"),
     )
+    ax_f.set_ylabel("Estimated SNR (dB)")
+    ax_f.tick_params(axis="x", labelsize=11)
 
     for ax, lab in (
         (ax_a, "A"),

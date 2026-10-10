@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from datasets_figures.scripts.paths import DATA_DIR
 
 
 def load_confusion_matrix_csv(path: Path) -> tuple[np.ndarray, list[str], list[str]] | None:
@@ -93,9 +92,6 @@ def draw_confusion_matrix_ax(
     ax.tick_params(axis="both", labelsize=8 if small_panel else 9)
 
 
-# Backwards-compatible name (same as ``DATA_DIR``).
-FIGURES_DATA_DIR = DATA_DIR
-
 MONTH_ORDER  = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 MONTH_NUM    = {m: i + 1 for i, m in enumerate(MONTH_ORDER)}
@@ -109,9 +105,6 @@ _SCHEDULE_BAND_COLOR_OVERVIEW = "#6eb85c"
 _SCHEDULE_BAND_ALPHA_OVERVIEW = 0.52
 _FEEDING_VLINE_COLOR = "#5c3d2e"
 _FEEDING_HOURS = (10, 11, 12, 13, 14)
-
-RECORDING_Y_BREAK    = 400
-VOCALISATION_Y_BREAK = 5.0
 
 # ── Dolphin group size ────────────────────────────────────────────────────────
 DOLPHIN_INITIAL    = 5
@@ -397,7 +390,6 @@ def _draw_recording_curve(ax, counts, labels, x, values) -> None:
          for r in counts.itertuples()]
     )
     _add_dolphin_overlay(ax, counts, dolphin_counts)
-    #_recording_hours_legend(ax, blue_label="Cumulative recording hours")
     _annotate_monthly_stats(ax, values)
 
 
@@ -449,108 +441,6 @@ def _add_dolphin_overlay(ax, counts: pd.DataFrame, dolphin_counts: np.ndarray) -
         )
 
 
-def _recording_hours_legend(ax, *, blue_label: str) -> None:
-    """Legend for the blue recording series and orange dolphin-count overlay."""
-    from matplotlib.lines import Line2D
-
-    _alpha = 0.75
-    h_blue = Line2D(
-        [0],
-        [0],
-        color=BAR_COLOR,
-        lw=2,
-        marker="o",
-        markersize=3.5,
-        label=blue_label,
-    )
-    h_orange = Line2D(
-        [0],
-        [0],
-        color=DOLPHIN_COLOR,
-        lw=1.5,
-        alpha=_alpha,
-        label="Dolphin departure/death",
-    )
-    leg = ax.legend(
-        handles=[h_blue, h_orange],
-        loc="lower right",
-        framealpha=0.92,
-        fontsize=10,
-    )
-    for text in leg.get_texts():
-        if text.get_text() == "Dolphin departure/death":
-            text.set_color(DOLPHIN_COLOR)
-
-
-def _draw_recording_curve_split(ax_top, ax_bot, counts, labels, x, values) -> None:
-    """Broken-axis line chart (break at RECORDING_Y_BREAK) with dolphin overlay."""
-    from matplotlib.transforms import blended_transform_factory
-
-    Y_BREAK = RECORDING_Y_BREAK
-    Y_MAX   = max(int(float(values.max()) * 1.08), Y_BREAK + 1) if len(values) else Y_BREAK + 1
-
-    # Recording curve drawn on both panels — each clips to its own ylim
-    for ax in (ax_top, ax_bot):
-        ax.fill_between(x, values, alpha=0.20, color=BAR_COLOR)
-        ax.plot(x, values, color=BAR_COLOR, linewidth=2.0,
-                marker="o", markersize=3.5, zorder=3)
-
-    ax_top.set_ylim(Y_BREAK, Y_MAX)
-    ax_bot.set_ylim(0, Y_BREAK)
-
-    # Break-spine decorations
-    for sp in ("bottom", "top", "right"):
-        ax_top.spines[sp].set_visible(False)
-    ax_bot.spines["top"].set_visible(False)
-    ax_bot.spines["right"].set_visible(False)
-    ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
-    d = 0.012
-    ax_top.plot((-d, +d), (-d, +d), transform=ax_top.transAxes,
-                color="k", clip_on=False, linewidth=1.2)
-    ax_bot.plot((-d, +d), (1 - d, 1 + d), transform=ax_bot.transAxes,
-                color="k", clip_on=False, linewidth=1.2)
-
-    # Year-boundary dashed lines on both panels
-    _seen_edges: set = set()
-    for _yr, _grp in counts.groupby("year"):
-        for _edge in (_grp.index[0] - 0.5, _grp.index[-1] + 0.5):
-            if _edge not in _seen_edges:
-                for ax in (ax_top, ax_bot):
-                    ax.axvline(_edge, color="#aaaaaa", linewidth=0.9, linestyle="--", zorder=0)
-                _seen_edges.add(_edge)
-
-    ax_top.set_title("Recording hours per month", fontsize=16, fontweight="bold", pad=10)
-    ax_bot.set_ylabel("Recording hours", fontsize=13)
-    for ax in (ax_top, ax_bot):
-        ax.tick_params(axis="y")
-    ax_bot.set_xlabel("")
-    ax_bot.set_xticks(x)
-    ax_bot.set_xticklabels(labels, fontsize=10, rotation=45, ha="right", rotation_mode="anchor")
-
-    trans = blended_transform_factory(ax_bot.transData, ax_bot.transAxes)
-    for yr, grp in counts.groupby("year"):
-        mid_x = (grp.index[0] + grp.index[-1]) / 2
-        ax_bot.text(mid_x, -0.22, str(int(yr)), transform=trans,
-                    ha="center", va="top", fontsize=12,
-                    fontweight="bold", color="#333333")
-
-    ax_top.yaxis.set_major_locator(mticker.MultipleLocator(200))
-    ax_bot.yaxis.set_major_locator(mticker.MultipleLocator(100))
-    for ax in (ax_top, ax_bot):
-        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0f}"))
-        ax.set_xlim(-0.6, len(x) - 0.4)
-        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.4)
-        ax.set_axisbelow(True)
-
-    dolphin_counts = np.array(
-        [_dolphin_count_for_month(int(r.year), int(r.month_num))
-         for r in counts.itertuples()]
-    )
-    _add_dolphin_overlay(ax_bot, counts, dolphin_counts)
-    _recording_hours_legend(ax_bot, blue_label="Recording hours per month")
-    _annotate_monthly_stats(ax_top, values)
-
-
 def _vocalisation_monthly(df: pd.DataFrame):
     """Chronological months with vocalisation duration > 0 (hours)."""
     counts = (
@@ -564,98 +454,6 @@ def _vocalisation_monthly(df: pd.DataFrame):
     x      = np.arange(len(counts))
     values = counts["dur_s"].values / 3600.0
     return counts, labels, x, values
-
-
-def _draw_vocalisation_split(ax_top, ax_bot, counts, labels, x, values) -> None:
-    """Broken y-axis at ``VOCALISATION_Y_BREAK`` h."""
-    from matplotlib.transforms import blended_transform_factory
-
-    Y_BREAK = VOCALISATION_Y_BREAK
-    Y_MAX   = max(float(values.max()) * 1.08, Y_BREAK + 0.1) if len(values) else Y_BREAK + 0.1
-
-    for ax in (ax_top, ax_bot):
-        ax.bar(x, values, color=BAR_COLOR, width=0.75, edgecolor="white", linewidth=0.4)
-
-    ax_top.set_ylim(Y_BREAK, Y_MAX)
-    ax_bot.set_ylim(0, Y_BREAK)
-
-    ax_top.spines["bottom"].set_visible(False)
-    ax_top.spines["top"].set_visible(False)
-    ax_top.spines["right"].set_visible(False)
-    ax_bot.spines["top"].set_visible(False)
-    ax_bot.spines["right"].set_visible(False)
-    ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
-
-    d = 0.012
-    ax_top.plot((-d, +d), (-d, +d),
-                transform=ax_top.transAxes, color="k", clip_on=False, linewidth=1.2)
-    ax_bot.plot((-d, +d), (1 - d, 1 + d),
-                transform=ax_bot.transAxes, color="k", clip_on=False, linewidth=1.2)
-
-    year_boundaries = counts[counts["month_num"] == 1].index.tolist()
-    for xb in year_boundaries[1:]:
-        for ax in (ax_top, ax_bot):
-            ax.axvline(xb - 0.5, color="#aaaaaa", linewidth=0.9, linestyle="--", zorder=0)
-
-    ax_top.set_title("Vocalisation duration per month", fontsize=16, fontweight="bold", pad=10)
-    ax_bot.set_ylabel("Vocalisation duration (h)", fontsize=13)
-    ax_bot.set_xlabel("")
-    ax_bot.set_xticks(x)
-    ax_bot.set_xticklabels(labels, fontsize=10, rotation=45, ha="right", rotation_mode="anchor")
-
-    trans = blended_transform_factory(ax_bot.transData, ax_bot.transAxes)
-    for yr, grp in counts.groupby("year"):
-        mid_x = (grp.index[0] + grp.index[-1]) / 2
-        ax_bot.text(mid_x, -0.22, str(int(yr)), transform=trans,
-                    ha="center", va="top", fontsize=12,
-                    fontweight="bold", color="#333333")
-
-    ax_top.yaxis.set_major_locator(mticker.MultipleLocator(5))
-    ax_bot.yaxis.set_major_locator(mticker.MultipleLocator(1))
-    ax_top.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0f}"))
-    ax_bot.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0f}"))
-    ax_bot.set_xlim(-0.6, len(x) - 0.4)
-
-    for ax in (ax_top, ax_bot):
-        ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
-        ax.set_axisbelow(True)
-
-    _annotate_monthly_stats(ax_top, values)
-
-
-def _draw_vocalisation_flat(ax, counts, labels, x, values) -> None:
-    """Single-axis vocalisation (all monthly values ≤ break threshold)."""
-    from matplotlib.transforms import blended_transform_factory
-
-    ax.bar(x, values, color=BAR_COLOR, width=0.75, edgecolor="white", linewidth=0.4)
-
-    year_boundaries = counts[counts["month_num"] == 1].index.tolist()
-    for xb in year_boundaries[1:]:
-        ax.axvline(xb - 0.5, color="#aaaaaa", linewidth=0.9, linestyle="--", zorder=0)
-
-    ax.set_title("Vocalisation duration per month", fontsize=16, fontweight="bold", pad=12)
-    ax.set_ylabel("Vocalisation duration (h)", fontsize=13)
-    ax.set_xlabel("")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=10, rotation=45, ha="right", rotation_mode="anchor")
-
-    trans = blended_transform_factory(ax.transData, ax.transAxes)
-    for yr, grp in counts.groupby("year"):
-        mid_x = (grp.index[0] + grp.index[-1]) / 2
-        ax.text(mid_x, -0.22, str(int(yr)), transform=trans,
-                ha="center", va="top", fontsize=12,
-                fontweight="bold", color="#333333")
-
-    ymax = float(values.max()) if len(values) else 0.0
-    ax.set_ylim(0, max(ymax * 1.12, 0.01))
-    ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0f}"))
-    ax.set_xlim(-0.6, len(x) - 0.4)
-    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
-    ax.set_axisbelow(True)
-    sns.despine(ax=ax)
-
-    _annotate_monthly_stats(ax, values)
 
 
 def _draw_vocalisation_curve(ax, counts, labels, x, values) -> None:
@@ -715,7 +513,7 @@ def plot_combined(
     df: pd.DataFrame,
     output_dir: Path,
     *,
-    confusion_matrix_csv: Path | None = None,
+    confusion_matrix_csv: Path,
 ) -> None:
     """2×2 combined overview (``fig_dataset_overview``)."""
     from matplotlib.gridspec import GridSpec
@@ -736,28 +534,12 @@ def plot_combined(
     _draw_hourly_histogram(df, ax_hist, for_dataset_overview=True)
     _draw_vocalisation_curve(ax_voc, voc_counts, voc_labels, voc_x, voc_values)
 
-    cm_path = (
-        confusion_matrix_csv
-        if confusion_matrix_csv is not None
-        else (FIGURES_DATA_DIR / "CNN_test_confusion_matrix.csv")
-    )
-    loaded = load_confusion_matrix_csv(cm_path)
+    loaded = load_confusion_matrix_csv(confusion_matrix_csv)
     if loaded is None:
-        ax_cm.text(
-            0.5,
-            0.5,
-            f"Missing or unreadable\n{cm_path.name}",
-            ha="center",
-            va="center",
-            transform=ax_cm.transAxes,
-            fontsize=14,
-            color="#555555",
-        )
-        ax_cm.set_axis_off()
-    else:
-        cm, row_names, col_names = loaded
-        draw_confusion_matrix_ax(ax_cm, cm, row_names, col_names, small_panel=False)
-        _enlarge_panel_d_confusion_matrix_text(ax_cm)
+        raise ValueError(f"Missing or unreadable confusion matrix: {confusion_matrix_csv}")
+    cm, row_names, col_names = loaded
+    draw_confusion_matrix_ax(ax_cm, cm, row_names, col_names, small_panel=False)
+    _enlarge_panel_d_confusion_matrix_text(ax_cm)
 
     _panel_label(ax_rec, "A")
     _panel_label(ax_hist, "B")
