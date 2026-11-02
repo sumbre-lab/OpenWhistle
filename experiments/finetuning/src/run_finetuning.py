@@ -2,6 +2,7 @@
 import argparse
 import csv
 from datetime import datetime, timezone
+import os
 import json
 import math
 from pathlib import Path
@@ -9,63 +10,19 @@ import shlex
 import shutil
 import subprocess
 import sys
+from zoneinfo import ZoneInfo
 
-import numpy as np
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+sys.dont_write_bytecode = True
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT.parent / "benchmark/src"))
-from benchmark_revisions import MODEL_REVISIONS as HF_MODEL_REVISIONS  # noqa: E402
-from aves_models import AVES_SCRATCH_MODELS  # noqa: E402
-from run_benchmark import environment_record  # noqa: E402
+import numpy as np  # noqa: E402
 
-MODEL_ID = "dolphinteam/OpenWhistle-Wav2Vec2.0"
-HF_MODELS = ("wav2vec2", "aves_continual")
-MODELS = (
-    ("aves_core", "AVES-core", "General audio (AudioSet, FSD50K)", "aves_core"),
-    ("biolingual", "BioLingual", "Audio-text (AnimalSpeak)", "davidrrobinson/biolingual"),
-    ("aves_bio", "AVES-bio", "Animal vocalizations (AudioSet, VGGSound)", "aves_bio"),
-    ("wav2vec2", "Wav2Vec2.0", "OpenWhistle (ours)", MODEL_ID),
-    ("aves_scratch", "AVES-bio (from scratch)", "OpenWhistle (from scratch)",
-     "dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct"),
-    ("aves_continual", "AVES-bio (continual)", "AVES-bio then OpenWhistle",
-     "dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz"),
+from finetuning_config import (  # noqa: E402
+    ROOT, RUNS_DIR, MODELS, MODEL_REVISIONS, RESULT_MODEL_IDS,
+    HF_MODELS, TASKS, TASK_DATASETS, SEED, NUM_BOOTSTRAP, CSV_FIELDS, recipe, run_manifest,
 )
-MODEL_REVISIONS = {
-    key: value for key, value in {
-        **HF_MODEL_REVISIONS,
-        **{spec["model_id"]: spec["revision"] for spec in AVES_SCRATCH_MODELS},
-    }.items() if key in {model[3] for model in MODELS}
-}
-TASKS = ("classification", "balanced", "detection")
-COMMON = dict(learning_rate=1e-5, head_learning_rate=1e-4, weight_decay=0.01,
-              warmup_ratio=0.1, dropout=0.1, max_grad_norm=1.0, mixed_precision="float16",
-              eval_batch_size=1, eval_precision="none", num_workers=4,
-              refit_train_validation=True)
-
-
-def recipe(key, task):
-    """Retain the audited per-model training settings; unify validation/test."""
-    if task == "balanced":
-        task = "classification"
-    settings = {**COMMON, "gradient_accumulation_steps": 1}
-    if task == "classification":
-        settings.update(epochs=50, patience=15, batch_size=32, label_smoothing=0.0)
-        if key == "wav2vec2":
-            settings["gradient_accumulation_steps"] = 2
-        elif key == "biolingual":
-            settings["learning_rate"] = 5e-6
-    else:
-        settings.update(epochs=30, patience={"aves_core": 5, "aves_bio": 5,
-                                          "biolingual": 10, "wav2vec2": 15,
-                                          "aves_scratch": 5, "aves_continual": 5}[key],
-                        batch_size=64 if key in ("aves_bio", "aves_scratch", "aves_continual") else 8)
-    if key == "wav2vec2":
-        settings["sample_rate"] = 44100
-    if key == "aves_continual":
-        # Three band views per clip; retain the AVES effective batch with a smaller physical batch.
-        settings.update(batch_size=4, gradient_accumulation_steps=8 if task == "classification" else 16,
-                        sample_rate=16000, feature_mode="btb3_concat")
-    return settings
+from run_benchmark import environment_record  # noqa: E402
+from hf_datasets import CLASSIFICATION_LABEL_NAMES, DETECTION_ONE_HOT_COLUMNS  # noqa: E402
 
 
 def make_command(output, model, task, seed):
@@ -84,6 +41,41 @@ def make_command(output, model, task, seed):
     for option, value in recipe(key, task).items():
         command += [f"--{option}"] if value is True else [f"--{option}", str(value)]
     return command
+
+
+def validate_report_details(report, task):
+    """Check split labels, validation selection, refit history and classification counts."""
+    metric = "map" if task == "detection" else "macro_f1"
+    expected_labels = (DETECTION_ONE_HOT_COLUMNS if task == "detection" else
+                       CLASSIFICATION_LABEL_NAMES["balanced" if task == "balanced" else "all"])
+    if report.get("label_names") != list(expected_labels):
+        raise ValueError("Report label order differs from the pinned dataset.")
+    history = report.get("history", [])
+    if (not history or len(history) > report["training_args"]["epochs"]
+            or [entry["epoch"] for entry in history] != list(range(1, len(history) + 1))):
+        raise ValueError("Missing or invalid validation history.")
+    scores = np.asarray([entry["validation"][metric] for entry in history])
+    best_epoch = report["best_epoch"]
+    if (not np.isfinite(scores).all() or (scores < 0).any() or (scores > 1).any()
+            or int(scores.argmax()) + 1 != best_epoch
+            or not np.isclose(scores[best_epoch - 1], report[f"validation_{metric}"], rtol=0, atol=1e-10)
+            or [entry["epoch"] for entry in report["refit_history"]] != list(range(1, best_epoch + 1))):
+        raise ValueError("Selected epoch or refit history disagrees with validation selection.")
+    losses = [entry["train_loss"] for entry in history + report["refit_history"]]
+    if not np.isfinite(losses).all() or (np.asarray(losses) < 0).any():
+        raise ValueError("Invalid training losses.")
+    if task != "detection":
+        cm = np.asarray(report.get("test_confusion_matrix", []))
+        count = len(expected_labels)
+        if (cm.shape != (count, count) or not np.issubdtype(cm.dtype, np.integer)
+                or (cm < 0).any() or not cm.sum()):
+            raise ValueError("Invalid test confusion matrix.")
+        denominator = cm.sum(axis=0) + cm.sum(axis=1)
+        f1 = np.divide(2 * cm.diagonal(), denominator,
+                       out=np.zeros(count, dtype=float), where=denominator != 0).mean()
+        if (not np.isclose(f1, report["test"]["macro_f1"], rtol=0, atol=1e-7)
+                or not np.isclose(cm.trace() / cm.sum(), report["test"]["accuracy"], rtol=0, atol=1e-7)):
+            raise ValueError("Test metrics disagree with the confusion matrix.")
 
 
 def load_result(path, model, task, seed, *, require_checkpoint=True, require_predictions=True):
@@ -118,18 +110,17 @@ def load_result(path, model, task, seed, *, require_checkpoint=True, require_pre
         raise ValueError(f"Missing or incompatible train+validation refit in {path}")
     if require_predictions and not path.with_name("test_predictions.npz").is_file():
         raise ValueError(f"Missing saved test predictions for {path}")
+    validate_report_details(result, task)
     return result
 
 
-def write_table(output, seed, num_bootstrap):
+def write_results(output, seed, num_bootstrap):
     from metrics import bootstrap_metric_scores, score_predictions
 
     summary = []
     reference_targets = {}
     for model in MODELS:
-        key, label, pretraining, model_id = model
-        row = dict(method=label, pretraining=pretraining, model_id=model_id, seed=seed,
-                   num_training_seeds=1, num_bootstrap=num_bootstrap)
+        key, label, _, model_id = model
         for task in TASKS:
             metric_task = "detection" if task == "detection" else "classification"
             path = output / key / task / f"seed_{seed}/results.json"
@@ -150,12 +141,16 @@ def write_table(output, seed, num_bootstrap):
             if not np.isclose(score, entry["test"][metric], rtol=0, atol=1e-7):
                 raise ValueError(f"Saved predictions disagree with test score in {path}")
             scores = bootstrap_metric_scores(metric_task, y_true, y_pred, num_bootstrap, seed)
-            row[f"{task}_score"] = score
-            row[f"{task}_std"] = float(np.std(scores, ddof=1))
+            dataset_name, dataset_config = TASK_DATASETS[task]
+            summary.append(dict(
+                model_label=label, model_id=RESULT_MODEL_IDS[key], dataset_name=dataset_name,
+                dataset_config=dataset_config, metric="mAP" if task == "detection" else "Macro-F1",
+                validation_score=entry[f"validation_{metric}"], best_epoch=entry["best_epoch"],
+                test_mean=score, test_std=float(np.std(scores, ddof=1)),
+                num_training_seeds=1, num_bootstrap=num_bootstrap, seed=seed))
             np.savez_compressed(path.with_name("bootstrap_scores.npz"), scores=np.asarray(scores))
-        summary.append(row)
     with (output / "results.csv").open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(summary[0]), lineterminator="\n")
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(summary)
     print(f"Saved results: {output / 'results.csv'}", flush=True)
@@ -163,47 +158,40 @@ def write_table(output, seed, num_bootstrap):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output_dir", type=Path, default=ROOT / "runs/manuscript")
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--num_bootstrap", type=int, default=1000)
+    parser.add_argument("--output_dir", type=Path, default=None,
+                        help="Local run directory (default: runs/finetuning/run-YYYYMMDD-HHMMSS).")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--tables_only", action="store_true")
+    parser.add_argument("--results_only", action="store_true")
     parser.add_argument("--prepare_only", action="store_true",
-                        help="Write and validate the manifest without training or building tables.")
+                        help="Write and validate the manifest without training or aggregating results.")
     parser.add_argument("--dry_run", action="store_true")
     args = parser.parse_args()
-    if args.seed < 0 or args.num_bootstrap < 2:
-        parser.error("Use a nonnegative seed and at least two bootstrap resamples.")
-    output = args.output_dir.expanduser().resolve()
-    # Keep the recorded campaign order: all/detection first, then balanced.
-    jobs = [(model, task, make_command(output, model, task, args.seed))
-            for model in MODELS for task in TASKS if task != "balanced"]
-    jobs += [(model, "balanced", make_command(output, model, "balanced", args.seed)) for model in MODELS]
+    output = (args.output_dir or RUNS_DIR / (
+        "run-" + datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y%m%d-%H%M%S")
+    )).expanduser().resolve()
+    jobs = [(model, task, make_command(output, model, task, SEED))
+            for model in MODELS for task in TASKS]
     if args.dry_run:
         for _, _, command in jobs:
             print(shlex.join(command))
-        print(f"One training seed ({args.seed}); validation/test batch 1, FP32; "
-              f"select epoch on validation, refit on train+validation; {args.num_bootstrap} test bootstrap resamples.")
+        print(f"One training seed ({SEED}); validation/test batch 1, FP32; "
+              f"select epoch on validation, refit on train+validation; {NUM_BOOTSTRAP} test bootstrap resamples.")
         print(f"Then generate {output / 'results.csv'}")
         return
-    manifest = dict(protocol="supervised_end_to_end_finetuning", models=MODELS,
-                    seed=args.seed, num_training_seeds=1, num_bootstrap=args.num_bootstrap,
-                    recipes={model[0]: {task: recipe(model[0], task) for task in TASKS}
-                             for model in MODELS}, cuda_tf32=True)
-    manifest = json.loads(json.dumps(manifest))
+    manifest = run_manifest()
     manifest_path = output / "run_config.json"
     previous = None
     if manifest_path.exists():
         previous = json.loads(manifest_path.read_text())
-        if not (args.resume or args.tables_only) or previous != manifest:
+        if not (args.resume or args.results_only) or previous != manifest:
             parser.error("Existing output requires --resume and exactly matching settings.")
-    elif args.tables_only:
-        parser.error("--tables_only requires an existing run.")
+    elif args.results_only:
+        parser.error("--results_only requires an existing run.")
     elif output.exists() and any(output.iterdir()):
         parser.error("Use a new or empty output directory.")
     environment = environment_record()
     env_path = output / "environment.json"
-    if env_path.exists() and not args.tables_only and json.loads(env_path.read_text()) != environment:
+    if env_path.exists() and not args.results_only and json.loads(env_path.read_text()) != environment:
         parser.error("The training environment changed; use a new output directory.")
     output.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
@@ -212,24 +200,24 @@ def main():
     if args.prepare_only:
         print(f"Prepared run: {output}", flush=True)
         return
-    if not args.tables_only:
+    if not args.results_only:
         for model, task, command in jobs:
             key, label, _, _ = model
-            path = output / key / task / f"seed_{args.seed}/results.json"
+            path = output / key / task / f"seed_{SEED}/results.json"
             if path.is_file():
-                load_result(path, model, task, args.seed, require_checkpoint=False)
-                print(f"Already complete: {label} {task}, seed {args.seed}", flush=True)
+                load_result(path, model, task, SEED, require_checkpoint=False)
+                print(f"Already complete: {label} {task}, seed {SEED}", flush=True)
                 continue
             if path.parent.exists() and any(path.parent.iterdir()):
                 stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-                archived = output / "interrupted" / key / task / f"seed_{args.seed}-{stamp}"
+                archived = output / "interrupted" / key / task / f"seed_{SEED}-{stamp}"
                 archived.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(path.parent), str(archived))
                 print(f"Archived interrupted run: {archived}", flush=True)
-            print(f"Training {label} {task}, seed {args.seed}", flush=True)
+            print(f"Training {label} {task}, seed {SEED}", flush=True)
             print(shlex.join(command), flush=True)
             subprocess.run(command, check=True)
-    write_table(output, args.seed, args.num_bootstrap)
+    write_results(output, SEED, NUM_BOOTSTRAP)
 
 
 if __name__ == "__main__":

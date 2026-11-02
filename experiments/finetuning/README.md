@@ -1,4 +1,4 @@
-# Supervised encoder fine-tuning
+# OpenWhistle: End-to-End Fine-Tuning
 
 End-to-end adaptation of the six neural encoders from the frozen-probe
 benchmark: AVES-core, BioLingual, AVES-bio, OpenWhistle Wav2Vec2.0,
@@ -6,14 +6,31 @@ OpenWhistle AVES from scratch, and continual AVES-bio. Each is evaluated on
 classification `all` (10 classes), classification `balanced` (6 classes),
 and detection `default` (7 binary labels).
 
-The [published results](results/manuscript/results.csv) contain scores and
-uncertainties for all 18 evaluations. Each model/configuration directory also
-contains a portable `results.json` with training histories and detailed metrics.
-Reports omit local output paths, null fields and unused CLI arguments.
-The top-level `model_id` and optional `model_revision` identify the encoder;
-`training_args` contains its training and evaluation settings.
-Checkpoints, prediction arrays and bootstrap samples have been removed from the retained
-release. New training outputs stay in ignored `runs/` directories.
+[Results](#results) · [Installation](#installation) · [Fine-tuning](#fine-tuning) ·
+[Protocol](#training-and-evaluation-protocol) · [Export](#results-and-export)
+
+## Results
+
+Scores are percentages: the full-test metric ± the standard deviation over
+1,000 test-clip bootstrap resamples. Each evaluation uses one training seed.
+Best point estimates in each column are bold.
+
+| Encoder | Classification (`all`) | Classification (`balanced`) | Detection |
+|---|---:|---:|---:|
+| AVES-core | 58.41 ± 2.24 | 78.89 ± 1.92 | 77.51 ± 2.17 |
+| BioLingual | 57.28 ± 2.03 | 80.35 ± 1.76 | 73.53 ± 1.90 |
+| AVES-bio | 61.42 ± 2.59 | 80.13 ± 1.82 | 76.86 ± 2.18 |
+| AVES-bio (from scratch) | **64.79 ± 3.50** | **85.55 ± 1.58** | **81.44 ± 2.03** |
+| Wav2Vec2.0 | 55.78 ± 1.88 | 84.14 ± 1.64 | 81.32 ± 2.02 |
+| AVES-bio (continual) | 62.19 ± 2.57 | 82.17 ± 1.65 | 78.41 ± 1.90 |
+
+[Full-precision CSV](results/results.csv) contains one row per model and dataset
+configuration, using the same identifiers and score columns as linear probing.
+The model directories under [results/](results/) retain 18 portable `results.json`
+reports with effective training settings, histories and detailed metrics.
+The directory name `classification/` denotes `all`; `balanced/` holds the other
+classification configuration. Local paths, null fields and unused CLI defaults
+are omitted. Checkpoints and prediction/bootstrap arrays remain local run outputs.
 
 ## Installation
 
@@ -24,7 +41,7 @@ or CPU setup. The dependencies match the frozen benchmark:
 python -m pip install -r experiments/finetuning/requirements.txt
 ```
 
-Training requires the audio datasets and pretrained models; verification of
+Training requires the audio datasets and pretrained models; exporting
 saved results does not. Use the complete repository checkout: this directory
 imports the shared loaders, encoders and metrics from `experiments/benchmark/src`.
 
@@ -37,19 +54,18 @@ CUDA is recommended for training the full encoders. The launcher runs one job
 at a time. GPU memory depends on the model, batch size and clip lengths.
 The retained reports do not include wall-clock durations or peak GPU memory.
 
-## Reproduce or resume
+## Fine-tuning
 
 From the repository root:
 
 ```bash
-bash experiments/finetuning/scripts/run_finetuning.sh \
-  --output_dir experiments/finetuning/runs/reproduction \
-  --seed 42 --num_bootstrap 1000 --resume
+python experiments/finetuning/src/run_finetuning.py \
+  --output_dir runs/finetuning/reproduction
 ```
 
-The launcher sets thread counts and invokes
-[`run_finetuning.py`](src/run_finetuning.py). It runs 18 jobs
-sequentially and skips compatible completed jobs. An interrupted job restarts
+The Python launcher runs 18 jobs sequentially. It fixes seed 42 and 1,000
+bootstrap resamples, matching the benchmark. Add `--resume` to skip compatible
+completed evaluations. An interrupted job restarts
 from pretrained initialization; its partial files move to `interrupted/`.
 Resume requires matching recipes, model initialization and software environment.
 It also requires the run's saved predictions; after removing them, start a
@@ -57,7 +73,10 @@ new training run with a separate `--output_dir` to regenerate the evaluation.
 
 Use `--dry_run` to inspect commands without downloads or writes,
 `--prepare_only` to prepare the run manifest, or `--output_dir` for a separate
-experiment. The default output is `experiments/finetuning/runs/manuscript/`.
+experiment. Without `--output_dir`, a new directory is created at
+`runs/finetuning/run-YYYYMMDD-HHMMSS/` at the repository root. Local run files
+are ignored by Git; `results/` contains the published results.
+The launcher disables tokenizer parallelism.
 
 ## Training and evaluation protocol
 
@@ -93,6 +112,8 @@ epoch changes the stopping point, not the schedule horizon.
 1e-5, head LR 1e-4, weight decay 0.01, dropout 0.1, and 10% warmup. BioLingual's
 classification encoder LR is 5e-6. Gradient clipping uses norm 1.0.
 
+Models, labels and evaluation configurations are shared with linear probing.
+Fine-tuning recipes are defined in [finetuning_config.py](src/finetuning_config.py).
 Model and dataset revisions are pinned in
 [`benchmark_revisions.py`](../benchmark/src/benchmark_revisions.py) and
 [`aves_models.py`](../benchmark/src/aves_models.py).
@@ -110,7 +131,7 @@ Fine-tuning changes the encoder, classifier optimization and regularization
 relative to the standardized logistic-regression probe. Their comparison does
 not isolate encoder freezing as the only changed factor.
 
-## Results and verification
+## Results and export
 
 Each new model/configuration run produces `best.pt` for selection,
 `final.pt` for test evaluation, `results.json`, ordered test predictions and
@@ -118,8 +139,8 @@ bootstrap scores. The directory name `classification/` denotes `all`;
 `balanced/` and `detection/` hold the other two configurations.
 The published results retain only `results.json` reports and `results.csv`.
 CSV scores and uncertainties are fractions; multiply by 100 for percentages.
-Run manifests, software metadata, generated tables and binary artifacts stay
-in the local `runs/` directory.
+Run manifests, software metadata and binary artifacts stay under
+`runs/finetuning/` at the repository root.
 
 The point estimate is the full-test macro-F1 or mAP. Each ± is the sample
 standard deviation of 1,000 test-clip bootstrap scores with shared resampling
@@ -129,26 +150,23 @@ It does not account for dependence between clips from the same recording session
 Training uses a fixed accumulation divisor even in a final incomplete group;
 this retains the optimization used for the published scores.
 
-Check CSV/report consistency without training or downloads:
-
-```bash
-OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 \
-python experiments/finetuning/src/verify_finetuning_results.py
-```
+The launcher validates each report before resuming or collecting its results,
+including label order, validation selection and the train + validation refit.
+CSV/report consistency and available prediction arrays are checked during export.
 
 After a local campaign, rebuild `results.csv` from its saved predictions:
 
 ```bash
-bash experiments/finetuning/scripts/run_finetuning.sh \
-  --output_dir experiments/finetuning/runs/reproduction --tables_only
+python experiments/finetuning/src/run_finetuning.py \
+  --output_dir runs/finetuning/reproduction --results_only
 ```
 
 Export a verified compact release into a new directory:
 
 ```bash
 python experiments/finetuning/src/export_finetuning_results.py \
-  --run_dir experiments/finetuning/runs/reproduction \
-  --output_dir experiments/finetuning/runs/exported-results
+  --run_dir runs/finetuning/reproduction \
+  --output_dir runs/finetuning/exported-results
 ```
 
 The exporter checks the CSV against the reports and, when prediction arrays
@@ -161,25 +179,3 @@ Checkpoint writes use a temporary file on the same filesystem and replace the
 previous file only after successful serialization and flush. Allow space for
 both the previous checkpoint and its replacement, about 360 MiB each for the
 Wav2Vec2/HuBERT/AVES encoders.
-
-## Resources and licensing
-
-The pinned revisions in the source code are publicly accessible without an
-access token. Datasets are downloaded on the first training run; the AVES
-core/bio weights are cached from the official Earth Species Project storage.
-
-The OpenWhistle [classification dataset](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Classification-Finetuning),
-[detection dataset](https://huggingface.co/datasets/dolphinteam/OpenWhistle-Detection-Finetuning)
-and [Wav2Vec2.0 weights](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0)
-are published under CC BY 4.0. See the repository's [existing notice](../../LICENSE-DATA).
-The original software is licensed under [MIT](../../LICENSE).
-Third-party dependencies, vendored code and pretrained checkpoints retain their
-own licenses: [AVES](https://github.com/earthspecies/aves),
-[BioLingual](https://huggingface.co/davidrrobinson/biolingual),
-[OpenWhistle AVES from scratch](https://huggingface.co/dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct)
-and [continual AVES](https://huggingface.co/dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz).
-
-This is the public/camera-ready release. For an anonymous review submission,
-identifying repository and Hub links would need a separate anonymized package.
-See the [NeurIPS code/data guidelines](https://neurips.cc/public/guides/CodeSubmissionPolicy)
-and the [2026 Evaluations & Datasets requirements](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets).

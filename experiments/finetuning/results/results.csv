@@ -1,0 +1,19 @@
+model_label,model_id,dataset_name,dataset_config,metric,validation_score,best_epoch,test_mean,test_std,num_training_seeds,num_bootstrap,seed
+AVES-core,aves_core,classification,all,Macro-F1,0.5916378854130901,17,0.5840675135773918,0.022440463816877296,1,1000,42
+AVES-core,aves_core,classification,balanced,Macro-F1,0.8319685981265361,9,0.78885786006619,0.019184050650707874,1,1000,42
+AVES-core,aves_core,detection,default,mAP,0.750923752784729,6,0.775066077709198,0.021705264631895104,1,1000,42
+BioLingual,biolingual,classification,all,Macro-F1,0.5911362029115289,50,0.572750360463501,0.02025475455364617,1,1000,42
+BioLingual,biolingual,classification,balanced,Macro-F1,0.817947817947818,42,0.8034592790443051,0.017601930678812237,1,1000,42
+BioLingual,biolingual,detection,default,mAP,0.723597526550293,11,0.7352975010871887,0.018952347792212308,1,1000,42
+AVES-bio,aves_bio,classification,all,Macro-F1,0.6005980466157478,10,0.6141638890554095,0.025909179506825586,1,1000,42
+AVES-bio,aves_bio,classification,balanced,Macro-F1,0.8239101081536097,6,0.8013029385313848,0.018213302944206235,1,1000,42
+AVES-bio,aves_bio,detection,default,mAP,0.7674540281295776,9,0.7686218619346619,0.02178265525001968,1,1000,42
+AVES-bio (from scratch),dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct,classification,all,Macro-F1,0.6256711191738463,8,0.6478749240273188,0.03504117511895936,1,1000,42
+AVES-bio (from scratch),dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct,classification,balanced,Macro-F1,0.865311853684766,6,0.8555218392396595,0.01579340542207063,1,1000,42
+AVES-bio (from scratch),dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct,detection,default,mAP,0.8254918456077576,7,0.8143812417984009,0.020315581686212572,1,1000,42
+Wav2Vec2.0,dolphinteam/OpenWhistle-Wav2Vec2.0,classification,all,Macro-F1,0.5751250897741438,24,0.5578186843275872,0.018792603750506284,1,1000,42
+Wav2Vec2.0,dolphinteam/OpenWhistle-Wav2Vec2.0,classification,balanced,Macro-F1,0.8486758209227712,39,0.8413547084507935,0.0164185238025659,1,1000,42
+Wav2Vec2.0,dolphinteam/OpenWhistle-Wav2Vec2.0,detection,default,mAP,0.7531472444534302,28,0.8131685853004456,0.020202784029022553,1,1000,42
+AVES-bio (continual),dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz,classification,all,Macro-F1,0.6052758968907928,17,0.6219236471103289,0.025705307805666933,1,1000,42
+AVES-bio (continual),dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz,classification,balanced,Macro-F1,0.8627487961338826,20,0.8217333168755009,0.016497273384790158,1,1000,42
+AVES-bio (continual),dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz,detection,default,mAP,0.7896823883056641,26,0.784062922000885,0.019035692610186783,1,1000,42
