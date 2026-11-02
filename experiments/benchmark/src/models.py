@@ -1,25 +1,28 @@
+"""Frozen audio encoders and acoustic features used by the benchmark."""
+
+import hashlib
 import io
 import json
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from fractions import Fraction
+from pathlib import Path
+from typing import Any
+
 import librosa
 import numpy as np
 import soundfile as sf
 import torch
 import torchaudio
-from concurrent.futures import ThreadPoolExecutor
-from fractions import Fraction
-from pathlib import Path
+from benchmark_revisions import MODEL_REVISIONS
 from scipy.signal import butter, hilbert, resample_poly, sosfilt, sosfiltfilt
-from typing import Any
 from transformers import (
     AutoFeatureExtractor,
     AutoModel,
     ClapModel,
     ClapProcessor,
-    Wav2Vec2FeatureExtractor,
     Wav2Vec2Model,
 )
-
 
 
 def _load_waveform_from_file(filename):
@@ -64,14 +67,16 @@ def load_waveform(audio_source: Any):
                 waveform = waveform[:, np.newaxis]
             elif waveform.ndim == 2 and waveform.shape[0] < waveform.shape[1]:
                 waveform = waveform.T
-        elif audio_source.get("path"):
-            waveform, sample_rate = _load_waveform_from_file(audio_source["path"])
         elif audio_source.get("bytes") is not None:
+            # Hub parquet rows can include an original path absent locally.
+            # Embedded audio is the authoritative source in that case.
             waveform, sample_rate = sf.read(
                 io.BytesIO(audio_source["bytes"]),
                 dtype="float32",
                 always_2d=True,
             )
+        elif audio_source.get("path"):
+            waveform, sample_rate = _load_waveform_from_file(audio_source["path"])
         else:
             raise ValueError(
                 "Unsupported audio mapping: expected an 'array', 'path', or 'bytes'."
@@ -125,11 +130,7 @@ def _resample_poly_exact(waveform: np.ndarray, sample_rate: int) -> np.ndarray:
         ratio.denominator,
     ).astype(np.float32)
     target_length = int(
-        round(
-            waveform.shape[0]
-            * BTB3_ENCODER_SAMPLE_RATE
-            / float(sample_rate)
-        )
+        round(waveform.shape[0] * BTB3_ENCODER_SAMPLE_RATE / float(sample_rate))
     )
     return _match_length(output, target_length)
 
@@ -180,9 +181,9 @@ def make_btb3_views(
         )
         analytic = hilbert(band.astype(np.float64, copy=False))
         time = np.arange(band.shape[0], dtype=np.float64) / float(sample_rate)
-        shifted = np.real(
-            analytic * np.exp(-2j * np.pi * low_hz * time)
-        ).astype(np.float32)
+        shifted = np.real(analytic * np.exp(-2j * np.pi * low_hz * time)).astype(
+            np.float32
+        )
         shifted = _filter_sos(shifted, sample_rate, 8000.0, "lowpass")
         shifted_views.append(_resample_poly_exact(shifted, sample_rate))
 
@@ -194,13 +195,42 @@ def make_btb3_views(
 
 
 class BioLingual:
-    def __init__(self, *args, **kwargs):
-        self.processor = ClapProcessor.from_pretrained("davidrrobinson/biolingual")
-        model = ClapModel.from_pretrained("davidrrobinson/biolingual")
+    def __init__(
+        self, *args, batch_native_models=False, hf_local_files_only=False, **kwargs
+    ):
+        revision = MODEL_REVISIONS["davidrrobinson/biolingual"]
+        self.processor = ClapProcessor.from_pretrained(
+            "davidrrobinson/biolingual",
+            revision=revision,
+            local_files_only=hf_local_files_only,
+        )
+        model = ClapModel.from_pretrained(
+            "davidrrobinson/biolingual",
+            revision=revision,
+            local_files_only=hf_local_files_only,
+        )
 
         self.device = infer_device()
 
         self.model = model.to(self.device).eval()
+        self.batch_native_models = batch_native_models
+        self.sample_rate = 48000
+        self.mixed_precision = False
+
+    def embed_batch(self, audio_sources):
+        if not self.batch_native_models:
+            return torch.stack([self(source) for source in audio_sources])
+        waveforms = [
+            get_waveform(source, 48000).squeeze(0).numpy() for source in audio_sources
+        ]
+        processed = self.processor.feature_extractor(
+            waveforms, return_tensors="pt", sampling_rate=48000
+        )
+        with torch.inference_mode():
+            outputs = self.model.get_audio_features(
+                input_features=processed["input_features"].to(self.device)
+            )
+        return outputs if isinstance(outputs, torch.Tensor) else outputs.pooler_output
 
     def __call__(self, file_path: str):
         waveform = get_waveform(file_path, 48000)
@@ -214,7 +244,9 @@ class BioLingual:
         with torch.no_grad():
             outputs = self.model.get_audio_features(input_features=inputs)
 
-        features = outputs if isinstance(outputs, torch.Tensor) else outputs.pooler_output
+        features = (
+            outputs if isinstance(outputs, torch.Tensor) else outputs.pooler_output
+        )
         return features.squeeze(0)
 
 
@@ -226,6 +258,7 @@ class Aves:
         sample_rate: int = 44100,
         hf_feature_mode: str = "standard",
         audio_workers: int = 0,
+        batch_native_models: bool = False,
         *args,
         **kwargs,
     ):
@@ -252,6 +285,7 @@ class Aves:
         self.sample_rate = sample_rate
         self.feature_mode = hf_feature_mode
         self.mixed_precision = False
+        self.batch_native_models = batch_native_models
         self.audio_executor = (
             ThreadPoolExecutor(
                 max_workers=audio_workers,
@@ -263,7 +297,15 @@ class Aves:
 
     def embed_batch(self, audio_sources):
         if not self.feature_mode.startswith("btb3_"):
-            return torch.stack([self(audio_source) for audio_source in audio_sources])
+            if not self.batch_native_models:
+                return torch.stack(
+                    [self(audio_source) for audio_source in audio_sources]
+                )
+            waveforms = [
+                get_waveform(source, self.sample_rate).squeeze(0)
+                for source in audio_sources
+            ]
+            return self._embed_native_waveforms(waveforms)
 
         def prepare_views(audio_source):
             waveform, sample_rate = load_waveform(audio_source)
@@ -275,16 +317,23 @@ class Aves:
             source_views = list(self.audio_executor.map(prepare_views, audio_sources))
 
         flat_views = [
-            torch.from_numpy(view)
-            for views in source_views
-            for view in views
+            torch.from_numpy(view) for views in source_views for view in views
         ]
+        pooled = self._embed_native_waveforms(flat_views)
+        pooled = pooled.reshape(len(audio_sources), 3, -1)
+        if self.feature_mode == "btb3_concat":
+            return pooled.reshape(len(audio_sources), -1)
+        if self.feature_mode == "btb3_mean":
+            return pooled.mean(dim=1)
+        raise ValueError(f"Unknown AVES feature mode: {self.feature_mode}")
+
+    def _embed_native_waveforms(self, waveforms):
         lengths = torch.tensor(
-            [view.shape[0] for view in flat_views],
+            [waveform.shape[0] for waveform in waveforms],
             dtype=torch.int64,
         )
         inputs = torch.nn.utils.rnn.pad_sequence(
-            flat_views,
+            waveforms,
             batch_first=True,
         )
         device = next(self.feature_extractor.model.parameters()).device
@@ -299,16 +348,8 @@ class Aves:
         positions = torch.arange(hidden.shape[1], device=device).unsqueeze(0)
         mask = positions < output_lengths.unsqueeze(1)
         weights = mask.unsqueeze(-1).to(hidden.dtype)
-        pooled = (
-            (hidden * weights).sum(dim=1)
-            / weights.sum(dim=1).clamp_min(1.0)
-        )
-        pooled = pooled.reshape(len(audio_sources), 3, -1)
-        if self.feature_mode == "btb3_concat":
-            return pooled.reshape(len(audio_sources), -1)
-        if self.feature_mode == "btb3_mean":
-            return pooled.mean(dim=1)
-        raise ValueError(f"Unknown AVES feature mode: {self.feature_mode}")
+        pooled = (hidden * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+        return pooled
 
     def __call__(self, file_path):
         if self.feature_mode.startswith("btb3_"):
@@ -339,12 +380,20 @@ class Aves:
             .squeeze()
         )
 
+
 class HuggingFaceAvesBackbone(Aves):
     """Load a versioned native AVES export without modifying the Hub cache."""
 
-    def __init__(self, hf_model_id, hf_sample_rate=None, **kwargs):
+    def __init__(
+        self,
+        hf_model_id,
+        hf_sample_rate=None,
+        hf_local_dir=None,
+        hf_local_files_only=False,
+        **kwargs,
+    ):
+        from aves_models import AVES_SCRATCH_MODELS
         from huggingface_hub import hf_hub_download
-        from hf_collection_models import AVES_SCRATCH_MODELS
 
         specifications = {model["model_id"]: model for model in AVES_SCRATCH_MODELS}
         if hf_model_id not in specifications:
@@ -352,10 +401,38 @@ class HuggingFaceAvesBackbone(Aves):
         spec = specifications[hf_model_id]
         if hf_sample_rate is not None and hf_sample_rate != spec["sample_rate"]:
             raise ValueError("Native OpenWhistle AVES exports require 44100 Hz")
-        model_path = hf_hub_download(repo_id=hf_model_id, revision=spec["revision"],
-                                     filename=spec["model_filename"])
-        config_path = hf_hub_download(repo_id=hf_model_id, revision=spec["revision"],
-                                      filename=spec["config_filename"])
+        if hf_local_dir is None:
+            model_path = hf_hub_download(
+                repo_id=hf_model_id,
+                revision=spec["revision"],
+                filename=spec["model_filename"],
+                local_files_only=hf_local_files_only,
+            )
+            config_path = hf_hub_download(
+                repo_id=hf_model_id,
+                revision=spec["revision"],
+                filename=spec["config_filename"],
+                local_files_only=hf_local_files_only,
+            )
+        else:
+            local_dir = Path(hf_local_dir).expanduser().resolve()
+            model_path = local_dir / spec["model_filename"]
+            config_path = local_dir / spec["config_filename"]
+            for path, expected in (
+                (model_path, spec["weights_sha256"]),
+                (config_path, spec["config_sha256"]),
+            ):
+                with path.open("rb") as handle:
+                    digest = hashlib.sha256()
+                    for block in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(block)
+                    actual = digest.hexdigest()
+                if actual != expected:
+                    raise ValueError(
+                        f"Local file does not match {hf_model_id}@{spec['revision']}: {path}"
+                    )
+            model_path, config_path = str(model_path), str(config_path)
+            print(f"Using verified local AVES checkpoint: {local_dir}")
         config = json.loads(Path(config_path).read_text())
         if config.pop("sample_rate", spec["sample_rate"]) != spec["sample_rate"]:
             raise ValueError("Native AVES config has an unexpected sample rate")
@@ -367,43 +444,24 @@ class HuggingFaceAvesBackbone(Aves):
         kwargs.pop("sample_rate", None)
         kwargs.pop("aves_model_path", None)
         kwargs.pop("aves_config_path", None)
-        super().__init__(aves_model_path=model_path, aves_config_path=str(normalized_path),
-                         sample_rate=spec["sample_rate"], **kwargs)
+        super().__init__(
+            aves_model_path=model_path,
+            aves_config_path=str(normalized_path),
+            sample_rate=spec["sample_rate"],
+            **kwargs,
+        )
         self.model_id = hf_model_id
         self.revision = spec["revision"]
 
 
-class Dolph2Vec:
-    def __init__(self, dolph2vec_model_path: str, dolph2vec_config_path: str, sample_rate: int = 44100, *args, **kwargs):
-        config_path = Path(dolph2vec_config_path)
-        if config_path.exists():
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_json_file(
-                str(config_path)
-            )
-        else:
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
-                dolph2vec_config_path
-            )
-        self.model = Wav2Vec2Model.from_pretrained(dolph2vec_model_path)
+class _Wav2Vec2Encoder(Wav2Vec2Model):
+    """Ignore the known pretraining heads when loading the published encoder."""
 
-        self.device = infer_device()
-        self.model = self.model.to(self.device).eval()
-        self.sample_rate = sample_rate
-
-    def __call__(self, file_path):
-        waveform = get_waveform(file_path, self.sample_rate).squeeze().numpy()
-
-        features = self.feature_extractor(
-            raw_speech=waveform,
-            padding="longest",
-            return_tensors="pt",
-            sampling_rate=self.sample_rate,
-        )["input_values"].to(self.device)
-
-        with torch.no_grad():
-            res = self.model(features, output_hidden_states=True)
-
-        return res.hidden_states[-1].mean(1).squeeze()
+    _keys_to_ignore_on_load_unexpected = [
+        *(Wav2Vec2Model._keys_to_ignore_on_load_unexpected or []),
+        r"^quantizer\.(?:codevectors|weight_proj\.(?:weight|bias))$",
+        r"^project_(?:hid|q)\.(?:weight|bias)$",
+    ]
 
 
 class HuggingFaceAudioBackbone:
@@ -417,6 +475,7 @@ class HuggingFaceAudioBackbone:
         amp_dtype: str = "float16",
         audio_workers: int = 0,
         hf_feature_mode: str = "standard",
+        hf_local_files_only: bool = False,
         *args,
         **kwargs,
     ):
@@ -431,8 +490,18 @@ class HuggingFaceAudioBackbone:
             "btb3_mean",
         }:
             raise ValueError(f"Unknown Hugging Face feature mode: {self.feature_mode}")
-        self.feature_extractor = AutoFeatureExtractor.from_pretrained(hf_model_id)
-        self.model = AutoModel.from_pretrained(hf_model_id)
+        revision = MODEL_REVISIONS.get(hf_model_id)
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained(
+            hf_model_id, revision=revision, local_files_only=hf_local_files_only
+        )
+        model_class = (
+            _Wav2Vec2Encoder
+            if hf_model_id == "dolphinteam/OpenWhistle-Wav2Vec2.0"
+            else AutoModel
+        )
+        self.model = model_class.from_pretrained(
+            hf_model_id, revision=revision, local_files_only=hf_local_files_only
+        )
         self.sample_rate = int(
             hf_sample_rate
             if hf_sample_rate is not None
@@ -477,26 +546,23 @@ class HuggingFaceAudioBackbone:
             if self.feature_mode.startswith("btb3_"):
                 waveform, sample_rate = load_waveform(audio_source)
                 return make_btb3_views(waveform, sample_rate)
-            return get_waveform(
-                audio_source,
-                self.sample_rate,
-            ).squeeze().numpy()
+            return (
+                get_waveform(
+                    audio_source,
+                    self.sample_rate,
+                )
+                .squeeze()
+                .numpy()
+            )
 
         if self.audio_executor is None:
             waveforms = [
-                prepare_waveform(audio_source)
-                for audio_source in audio_sources
+                prepare_waveform(audio_source) for audio_source in audio_sources
             ]
         else:
-            waveforms = list(
-                self.audio_executor.map(prepare_waveform, audio_sources)
-            )
+            waveforms = list(self.audio_executor.map(prepare_waveform, audio_sources))
         if self.feature_mode.startswith("btb3_"):
-            waveforms = [
-                view
-                for source_views in waveforms
-                for view in source_views
-            ]
+            waveforms = [view for source_views in waveforms for view in source_views]
             encoder_sample_rate = BTB3_ENCODER_SAMPLE_RATE
         else:
             encoder_sample_rate = self.sample_rate
@@ -505,11 +571,7 @@ class HuggingFaceAudioBackbone:
             waveforms,
             sampling_rate=encoder_sample_rate,
             padding=True,
-            # Several Wav2Vec2 checkpoints (including Dolph2Vec) default to
-            # return_attention_mask=False.  That is harmless for single-file
-            # inference, but batched mean pooling would otherwise include the
-            # right-padding frames and produce different embeddings depending
-            # on the other files in the batch.
+            # Exclude padded frames when pooling variable-length clips.
             return_attention_mask=True,
             return_tensors="pt",
         )
@@ -551,10 +613,6 @@ class Spectrogram:
         waveform = get_waveform(file_path, self.sample_rate)
         waveform = waveform.squeeze().numpy()
 
-        # Compute the spectrogram
-        # spectrogram = torchaudio.transforms.Spectrogram()(torch.tensor(waveform))
-        # spectrogram = torch.mean(spectrogram, dim=0)
-
         S = librosa.feature.melspectrogram(y=waveform, sr=self.sample_rate, n_mels=128)
         feats = np.mean(
             librosa.power_to_db(S, ref=np.max), axis=1
@@ -571,7 +629,9 @@ class MFCC:
         waveform = get_waveform(file_path, self.sample_rate)
         waveform = waveform.squeeze().numpy()
 
-        mfccs = librosa.feature.mfcc(y=waveform, sr=self.sample_rate, n_mfcc=self.n_mfcc)
+        mfccs = librosa.feature.mfcc(
+            y=waveform, sr=self.sample_rate, n_mfcc=self.n_mfcc
+        )
         return torch.Tensor(np.mean(mfccs, axis=1))  # Averaged MFCCs
 
 

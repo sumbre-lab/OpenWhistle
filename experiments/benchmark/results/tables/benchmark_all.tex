@@ -1,0 +1,32 @@
+\begin{table}[h]
+  \centering
+  \resizebox{\linewidth}{!}{
+  \begin{tabular}{l l cc}
+    \toprule
+    Method & Pretraining & Classification (macro-F1) & Detection (mAP) \\
+    \midrule
+    Chance level & -- & 10.00 & 7.84 \\
+    \midrule
+    \multicolumn{4}{l}{\textit{Classical acoustic features}} \\
+    Spectral features & -- & $14.15\pm0.67$ & $26.34\pm1.17$ \\
+    MFCCs & -- & $21.22\pm0.99$ & $33.91\pm1.77$ \\
+    Mean spectrogram & -- & $32.05\pm1.30$ & $47.80\pm2.10$ \\
+    \midrule
+    \multicolumn{4}{l}{\textit{Off-the-shelf pretrained models}} \\
+    AVES-core & General audio (AudioSet, FSD50K) & $51.60\pm2.28$ & $57.39\pm2.07$ \\
+    BioLingual & Audio-text (AnimalSpeak) & $54.03\pm2.72$ & $66.52\pm2.23$ \\
+    AVES-bio & Animal vocalizations (AudioSet, VGGSound) & $54.45\pm2.58$ & $65.01\pm2.29$ \\
+    \midrule
+    \multicolumn{4}{l}{\textit{Pretrained on OpenWhistle (ours)}} \\
+    AVES-bio$^{\ddagger}$ & OpenWhistle (from scratch) & $60.97\pm3.76$ & $76.17\pm1.97$ \\
+    Wav2Vec2.0 & OpenWhistle (from scratch) & $61.95\pm2.79$ & $\mathbf{79.59\pm1.83}$ \\
+    \midrule
+    \multicolumn{4}{l}{\textit{Continual pretraining on OpenWhistle (ours)}} \\
+    AVES-bio$^{\dagger}$ & AVES-bio checkpoint $\rightarrow$ OpenWhistle & $\mathbf{64.75\pm2.64}$ & $73.87\pm2.06$ \\
+    \bottomrule
+  \end{tabular}
+  }
+
+  \caption{Performance on whistle-type classification (macro-F1) and whistle-type detection (mAP). Models are grouped by representation and pretraining strategy. All use linear probing with a logistic regression classifier on frozen representations. Scores are reported as percentages. Each entry gives the full-test metric $\pm$ the standard deviation over 1,000 bootstrap resamples of the test set. $^{\dagger}$Continual pretraining at 16\,kHz with multi-band encoding; $^{\ddagger}$trained natively at 44.1\,kHz (Sec.~\ref{app:pretraining}).}
+  \label{tab:results}
+\end{table}

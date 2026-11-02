@@ -62,8 +62,8 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 ## Repository layout
 
 Start with the [repository guide](docs/START_HERE.md) to find the relevant code,
-result summaries and provenance checks. The [benchmark result index](experiments/benchmark/results/README.md)
-distinguishes reference tables, detailed reports and historical outputs.
+result summaries and provenance checks. The [benchmark README](experiments/benchmark/README.md)
+provides evaluation commands and published results.
 
 ```text
 .
@@ -77,9 +77,8 @@ distinguishes reference tables, detailed reports and historical outputs.
 │   ├── pretraining/
 │   │   └── ANNpretraining/      # self-supervised training implementation and launcher
 │   ├── benchmark/
-│   │   ├── scripts/             # experiment launchers
 │   │   ├── src/                 # frozen embeddings and logistic regression
-│   │   └── results/             # manuscript tables and supporting reports
+│   │   └── results/             # published scores and tables
 │   └── finetuning/
 │       ├── scripts/             # experiment launchers
 │       ├── src/                 # supervised encoder training
@@ -100,21 +99,49 @@ distinguishes reference tables, detailed reports and historical outputs.
 
 ## Running the benchmark
 
-The benchmark trains logistic-regression heads on frozen embeddings for each model family and task (classification or detection). The regularization strength is selected on the validation split; the final probe is refit on train + validation and evaluated on the held-out test split. The sweep includes:
+The linear probing benchmark evaluates nine frozen representations with logistic
+regression on fixed classification and detection splits. C is selected on
+validation, and the final probe is fitted on train + validation. The published
+protocol uses **batch size 1, FP32, and 1,000 test bootstrap resamples**. The
+Wav2Vec2.0 checkpoint is `dolphinteam/OpenWhistle-Wav2Vec2.0`.
 
-`mfcc`, `spectrogram`, `spectral_features`, `dolph2vec`, `biolingual`, `aves_bio`, `aves_core`
-
-Install Python 3.12 and the benchmark dependencies:
+Install the benchmark dependencies in a Python 3.13 environment, then run from
+the repository root:
 
 ```bash
-cd experiments/benchmark
-pip install -r requirements.txt
-./scripts/run_all.sh
+python -m pip install -r experiments/benchmark/requirements.txt
+python experiments/benchmark/src/run_benchmark.py \
+  --output_dir runs/benchmark/reproduction
 ```
 
-If you need a specific CUDA or CPU PyTorch build, install `torch` and `torchaudio` from the [PyTorch installation guide](https://pytorch.org/get-started/locally/) before installing the requirements.
+To evaluate only Wav2Vec2.0 on balanced classification:
 
-`run_all.sh` runs the classification and detection benchmarks, then generates micro-averaged precision–recall curves. Outputs are written under `experiments/benchmark/results/`. For CNN-specific training and evaluation, use [`cnn/`](cnn/) instead of the benchmark driver.
+```bash
+python experiments/benchmark/src/train_lr_splits.py \
+  --model hf \
+  --hf_model_id dolphinteam/OpenWhistle-Wav2Vec2.0 \
+  --hf_sample_rate 44100 \
+  --dataset_name classification \
+  --dataset_config balanced
+```
+
+The single-run defaults use batch size 1, FP32, feature standardization, seed 42
+and 1,000 bootstrap resamples. Its CSV is saved to
+`runs/benchmark/single-model/results.csv`.
+
+Install compatible `torch` and `torchaudio` builds for your CPU or CUDA setup.
+The [benchmark README](experiments/benchmark/README.md) documents the exact
+protocol, pinned model/dataset revisions, resume options and table generation.
+Use `--dry_run` to inspect the 27 evaluation commands and one table generation
+command without downloading or writing files.
+
+The [published main table](experiments/benchmark/results/tables/benchmark_all.pdf),
+[full results](experiments/benchmark/results/results.csv), and
+[evaluation protocol](experiments/benchmark/README.md#evaluation-protocol) are
+included in the repository. Prediction and label arrays remain in local runs.
+New evaluations and embedding caches go under
+ignored `runs/benchmark/` at the repository root. For the binary whistle/noise
+CNN, use [`cnn/`](cnn/) instead of the representation benchmark.
 
 ## Additional experiments
 

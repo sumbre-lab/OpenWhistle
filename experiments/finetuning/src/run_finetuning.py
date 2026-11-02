@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT.parent / "benchmark/src"))
 from benchmark_revisions import MODEL_REVISIONS as HF_MODEL_REVISIONS  # noqa: E402
 from aves_models import AVES_SCRATCH_MODELS  # noqa: E402
-from run_manuscript_benchmark import environment_record  # noqa: E402
+from run_benchmark import environment_record  # noqa: E402
 
 MODEL_ID = "dolphinteam/OpenWhistle-Wav2Vec2.0"
 HF_MODELS = ("wav2vec2", "aves_continual")
