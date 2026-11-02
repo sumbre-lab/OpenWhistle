@@ -85,7 +85,8 @@ describes the linear probing evaluation and generated tables.
 │       └── results/             # manuscript results by model and seed
 ├── tests/
 ├── Annotation_Pipeline.png
-├── LICENSE-DATA
+├── LICENSE                     # CC BY 4.0, original software and documentation
+├── LICENSE-DATA                # CC BY 4.0, datasets
 └── README.md
 ```
 
@@ -143,6 +144,14 @@ CNN, use [`cnn/`](cnn/) instead of the representation benchmark.
 ## Additional experiments
 
 The rebuttal additions include pretraining-size ablations, supervised encoder fine-tuning, open-set evaluation, CNN learning curves, and ROC/UMAP figures. See the [benchmark README](experiments/benchmark/README.md), [fine-tuning README](experiments/finetuning/README.md), and [CNN learning-curve README](cnn/learning_curve/README.md) for commands.
+
+## License
+
+The original OpenWhistle software and its accompanying documentation are licensed
+under [CC BY 4.0](LICENSE). The OpenWhistle datasets are also licensed under
+[CC BY 4.0](LICENSE-DATA), as are the published OpenWhistle wav2vec 2.0 weights.
+Third-party code, dependencies and other pretrained checkpoints retain their
+own licenses; see their respective notices and model cards.
 
 ## Authors
 
