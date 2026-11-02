@@ -27,7 +27,7 @@ deviation over 1,000 bootstrap resamples. Best scores in each column are bold.
 | BioLingual | 54.03 ± 2.72 | 70.98 ± 2.12 | 66.52 ± 2.23 |
 | AVES-bio | 54.45 ± 2.58 | 75.13 ± 1.96 | 65.01 ± 2.29 |
 | AVES-bio (from scratch) | 60.97 ± 3.76 | 79.89 ± 1.81 | 76.17 ± 1.97 |
-| Wav2Vec2.0 | 61.95 ± 2.79 | **81.40 ± 1.78** | **79.59 ± 1.83** |
+| wav2vec 2.0 | 61.95 ± 2.79 | **81.40 ± 1.78** | **79.59 ± 1.83** |
 | AVES-bio (continual) | **64.75 ± 2.64** | 75.24 ± 2.01 | 73.87 ± 2.06 |
 
 - [Main table: PDF](results/tables/benchmark_all.pdf) · [LaTeX](results/tables/benchmark_all.tex)
@@ -79,7 +79,7 @@ numerical environment before resuming. Local run files are ignored by Git;
 
 ### Single evaluation
 
-Example: Wav2Vec2.0 on balanced classification.
+Example: wav2vec 2.0 on balanced classification.
 
 ```bash
 python experiments/benchmark/src/train_lr_splits.py \
@@ -147,19 +147,19 @@ The input counts are defined in `src/benchmark_config.py`.
 | AVES-core / AVES-bio | Official TorchAudio AVES encoders at 44.1 kHz |
 | BioLingual | `davidrrobinson/biolingual`, native CLAP frontend at 48 kHz |
 | AVES-bio (from scratch) | `dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct`, native 44.1 kHz |
-| Wav2Vec2.0 | `dolphinteam/OpenWhistle-Wav2Vec2.0`, native 44.1 kHz |
+| wav2vec 2.0 | `dolphinteam/OpenWhistle-Wav2Vec2.0`, native 44.1 kHz |
 | AVES-bio (continual) | `dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz`, three 16 kHz band views |
 
 Model and dataset snapshots are pinned in
 [benchmark_revisions.py](src/benchmark_revisions.py). Native AVES artifact
 paths, revisions and SHA-256 hashes are defined in
-[aves_models.py](src/aves_models.py). Wav2Vec2.0 uses the native Fairseq checkpoint
+[aves_models.py](src/aves_models.py). wav2vec 2.0 uses the native Fairseq checkpoint
 at 400,000 updates. Its training recipe is documented in
 [pretraining/](../pretraining/README.md).
 
 Continual AVES uses BTB3: baseband and two frequency-shifted views of the original
 44.1 kHz waveform, encoded at 16 kHz and concatenated into 2,304 features.
-Wav2Vec2.0 and AVES pool valid output frames; BioLingual uses native pooling.
+wav2vec 2.0 and AVES pool valid output frames; BioLingual uses native pooling.
 Extraction uses batch size 1 and FP32 with AMP disabled; the CUDA path permits
 TF32. Embedding caches include a fingerprint of extraction code and dependency
 versions to invalidate outdated features automatically.

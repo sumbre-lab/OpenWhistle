@@ -748,7 +748,7 @@ def main():
         family = (
             "AVES-Bio"
             if "aves" in model_id.lower()
-            else "Wav2Vec2.0"
+            else "wav2vec 2.0"
             if "wav2vec2" in model_id.lower()
             else args.model
         )

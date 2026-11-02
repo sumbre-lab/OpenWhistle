@@ -14,7 +14,7 @@
 
 </div>
 
-OpenWhistle is the largest publicly available dataset of bottlenose dolphin vocalizations: approximately **180,000 whistles (114 hours)** recorded over five years from a stable pod of five individuals in a semi-natural environment. It includes **8,354 expert-annotated whistles**, reproducible detection and classification benchmarks, the full processing pipeline, and a Wav2Vec2.0 model pretrained specifically on dolphin acoustics.
+OpenWhistle is the largest publicly available dataset of bottlenose dolphin vocalizations: approximately **180,000 whistles (114 hours)** recorded over five years from a stable pod of five individuals in a semi-natural environment. It includes **8,354 expert-annotated whistles**, reproducible detection and classification benchmarks, the full processing pipeline, and a wav2vec 2.0 model pretrained specifically on dolphin acoustics.
 
 ```bibtex
 @misc{mustun2026openwhistle,
@@ -39,7 +39,7 @@ OpenWhistle is the largest publicly available dataset of bottlenose dolphin voca
   <img src="Annotation_Pipeline.png" alt="OpenWhistle annotation and processing pipeline" width="900">
 </p>
 
-This repository provides the code to access the data and reproduce the paper experiments. It includes the multi-model benchmark, Wav2Vec2.0 pretraining, whistle presence detection and segmentation, and scripts used to generate the dataset figures in the manuscript.
+This repository provides the code to access the data and reproduce the paper experiments. It includes the multi-model benchmark, wav2vec 2.0 pretraining, whistle presence detection and segmentation, and scripts used to generate the dataset figures in the manuscript.
 
 ## Hugging Face datasets
 
@@ -56,7 +56,7 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 
 | Model | Task | Hugging Face link |
 |-------|------|-------------------|
-| **OpenWhistle Wav2Vec2.0** | Self-supervised acoustic representation learning and downstream feature extraction | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
+| **OpenWhistle wav2vec 2.0** | Self-supervised acoustic representation learning and downstream feature extraction | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
 | **OpenWhistle CNN VGG16** | Binary whistle/noise classification from spectrogram windows | [dolphinteam/OpenWhistle-CNN-VGG16](https://huggingface.co/dolphinteam/OpenWhistle-CNN-VGG16) |
 
 ## Repository layout
@@ -103,7 +103,7 @@ The linear probing benchmark evaluates nine frozen representations with logistic
 regression on fixed classification and detection splits. C is selected on
 validation, and the final probe is fitted on train + validation. The published
 protocol uses **batch size 1, FP32, and 1,000 test bootstrap resamples**. The
-Wav2Vec2.0 checkpoint is `dolphinteam/OpenWhistle-Wav2Vec2.0`.
+wav2vec 2.0 checkpoint is `dolphinteam/OpenWhistle-Wav2Vec2.0`.
 
 Install the benchmark dependencies in a Python 3.13 environment, then run from
 the repository root:
@@ -114,7 +114,7 @@ python experiments/benchmark/src/run_benchmark.py \
   --output_dir runs/benchmark/reproduction
 ```
 
-To evaluate only Wav2Vec2.0 on balanced classification:
+To evaluate only wav2vec 2.0 on balanced classification:
 
 ```bash
 python experiments/benchmark/src/train_lr_splits.py \

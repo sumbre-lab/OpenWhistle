@@ -8,5 +8,5 @@
 | BioLingual | Audio-text (AnimalSpeak) | 54.03 ± 2.72 | 70.98 ± 2.12 | 66.52 ± 2.23 |
 | AVES-bio | Animal vocalizations (AudioSet, VGGSound) | 54.45 ± 2.58 | 75.13 ± 1.96 | 65.01 ± 2.29 |
 | AVES-bio (from scratch) | OpenWhistle (from scratch) | 60.97 ± 3.76 | 79.89 ± 1.81 | 76.17 ± 1.97 |
-| Wav2Vec2.0 | OpenWhistle (from scratch) | 61.95 ± 2.79 | 81.40 ± 1.78 | 79.59 ± 1.83 |
+| wav2vec 2.0 | OpenWhistle (from scratch) | 61.95 ± 2.79 | 81.40 ± 1.78 | 79.59 ± 1.83 |
 | AVES-bio (continual) | AVES-bio checkpoint to OpenWhistle | 64.75 ± 2.64 | 75.24 ± 2.01 | 73.87 ± 2.06 |

@@ -54,7 +54,7 @@ BENCHMARK_MODELS = (
     ),
     dict(
         key="wav2vec2",
-        label="Wav2Vec2.0",
+        label="wav2vec 2.0",
         backend="hf",
         group="Pretrained on OpenWhistle (ours)",
         pretraining="OpenWhistle (from scratch)",

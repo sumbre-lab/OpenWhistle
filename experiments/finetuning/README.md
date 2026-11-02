@@ -1,7 +1,7 @@
 # OpenWhistle: End-to-End Fine-Tuning
 
 End-to-end adaptation of the six neural encoders from the frozen-probe
-benchmark: AVES-core, BioLingual, AVES-bio, OpenWhistle Wav2Vec2.0,
+benchmark: AVES-core, BioLingual, AVES-bio, OpenWhistle wav2vec 2.0,
 OpenWhistle AVES from scratch, and continual AVES-bio. Each is evaluated on
 classification `all` (10 classes), classification `balanced` (6 classes),
 and detection `default` (7 binary labels).
@@ -21,7 +21,7 @@ Best point estimates in each column are bold.
 | BioLingual | 57.28 ± 2.03 | 80.35 ± 1.76 | 73.53 ± 1.90 |
 | AVES-bio | 61.42 ± 2.59 | 80.13 ± 1.82 | 76.86 ± 2.18 |
 | AVES-bio (from scratch) | **64.79 ± 3.50** | **85.55 ± 1.58** | **81.44 ± 2.03** |
-| Wav2Vec2.0 | 55.78 ± 1.88 | 84.14 ± 1.64 | 81.32 ± 2.02 |
+| wav2vec 2.0 | 55.78 ± 1.88 | 84.14 ± 1.64 | 81.32 ± 2.02 |
 | AVES-bio (continual) | 62.19 ± 2.57 | 82.17 ± 1.65 | 78.41 ± 1.90 |
 
 [Full-precision CSV](results/results.csv) contains one row per model and dataset
@@ -120,7 +120,7 @@ epoch changes the stopping point, not the schedule horizon.
 | AVES-core | 32 × 1; 50 / 15 | 8 × 1; 30 / 5 |
 | BioLingual | 32 × 1; 50 / 15 | 8 × 1; 30 / 10 |
 | AVES-bio | 32 × 1; 50 / 15 | 64 × 1; 30 / 5 |
-| Wav2Vec2.0 | 32 × 2; 50 / 15 | 8 × 1; 30 / 15 |
+| wav2vec 2.0 | 32 × 2; 50 / 15 | 8 × 1; 30 / 15 |
 | AVES from scratch | 32 × 1; 50 / 15 | 64 × 1; 30 / 5 |
 | AVES continual | 4 × 8; 50 / 15 | 4 × 16; 30 / 5 |
 
@@ -135,7 +135,7 @@ Model and dataset revisions are pinned in
 [`aves_models.py`](../benchmark/src/aves_models.py).
 Run manifests omit revision dictionaries; model and dataset loading uses the
 pinned revisions defined in these modules.
-Wav2Vec2.0 uses `dolphinteam/OpenWhistle-Wav2Vec2.0`, with the same pinned
+wav2vec 2.0 uses `dolphinteam/OpenWhistle-Wav2Vec2.0`, with the same pinned
 checkpoint revision as the evaluated model. See the
 [benchmark README](../benchmark/README.md).
 Scratch AVES uses the native 44.1 kHz Stage-2 stride-320 export with verified

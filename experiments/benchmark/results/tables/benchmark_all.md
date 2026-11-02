@@ -10,7 +10,7 @@ Classification configuration: `all`. Scores in percent.
 | BioLingual | Audio-text (AnimalSpeak) | 54.03 ± 2.72 | 66.52 ± 2.23 |
 | AVES-bio | Animal vocalizations (AudioSet, VGGSound) | 54.45 ± 2.58 | 65.01 ± 2.29 |
 | AVES-bio (from scratch) | OpenWhistle (from scratch) | 60.97 ± 3.76 | 76.17 ± 1.97 |
-| Wav2Vec2.0 | OpenWhistle (from scratch) | 61.95 ± 2.79 | **79.59 ± 1.83** |
+| wav2vec 2.0 | OpenWhistle (from scratch) | 61.95 ± 2.79 | **79.59 ± 1.83** |
 | AVES-bio (continual) | AVES-bio checkpoint to OpenWhistle | **64.75 ± 2.64** | 73.87 ± 2.06 |
 
 Performance on whistle-type classification (macro-F1) and whistle-type detection (mAP). Models are grouped by representation and pretraining strategy. All use linear probing with a logistic regression classifier on frozen representations. Scores are reported as percentages. Each entry gives the full-test metric $\pm$ the standard deviation over 1,000 bootstrap resamples of the test set.
