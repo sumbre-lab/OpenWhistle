@@ -56,7 +56,8 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 
 | Model | Task | Hugging Face link |
 |-------|------|-------------------|
-| **OpenWhistle wav2vec 2.0** | Self-supervised acoustic representation learning and downstream feature extraction | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
+| **OpenWhistle wav2vec 2.0 (100%)** | Self-supervised acoustic representations used in the manuscript benchmark; final 400,000-update checkpoint | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
+| **OpenWhistle wav2vec 2.0 (10%)** | Pretraining data-size ablation; final 40,000-update checkpoint | [dolphinteam/OpenWhistle-Wav2Vec2.0-10pct](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0-10pct) |
 | **OpenWhistle CNN VGG16** | Binary whistle/noise classification from spectrogram windows | [dolphinteam/OpenWhistle-CNN-VGG16](https://huggingface.co/dolphinteam/OpenWhistle-CNN-VGG16) |
 
 ## Repository layout
@@ -69,7 +70,7 @@ describes the linear probing evaluation and generated tables.
 .
 ├── cnn/                         # whistle detection, segmentation and inference
 │   ├── utils/
-│   ├── analysis/                # audio-derived SNR figure
+│   ├── analysis/                # missed-whistle analysis and SNR figure
 │   ├── external/                # WMMSD/DCLDE inference tools
 │   └── learning_curve/          # training-set size experiment and results
 ├── datasets_figures/            # dataset overview figures
@@ -80,9 +81,12 @@ describes the linear probing evaluation and generated tables.
 │   │   ├── src/                 # frozen embeddings and logistic regression
 │   │   └── results/             # published scores and tables
 │   └── finetuning/
-│       ├── scripts/             # experiment launchers
-│       ├── src/                 # supervised encoder training
-│       └── results/             # manuscript results by model and seed
+│       ├── src/                 # supervised encoder training and launcher
+│       └── results/             # published reports and results.csv
+├── runs/                       # ignored local experiment outputs
+│   ├── pretraining/            # prepared audio, checkpoints and exports
+│   ├── benchmark/              # probing outputs and embedding caches
+│   └── finetuning/             # training outputs and checkpoints
 ├── tests/
 ├── Annotation_Pipeline.png
 ├── LICENSE                     # CC BY 4.0, original software and documentation
@@ -92,6 +96,7 @@ describes the linear probing evaluation and generated tables.
 
 - [`experiments/benchmark/`](experiments/benchmark/) reproduces the paper benchmark on the classification and detection datasets.
 - [`experiments/pretraining/`](experiments/pretraining/) contains the large-scale self-supervised pretraining material.
+- [`experiments/finetuning/`](experiments/finetuning/) reproduces supervised adaptation of the six neural encoders, with published reports and a summary CSV.
 - [`cnn/`](cnn/) contains the VGG16-based whistle presence detection and segmentation workflow. See the [CNN README](cnn/README.md) for setup, training, and inference.
 - [`datasets_figures/`](datasets_figures/) builds the dataset overview figures used in the manuscript.
 
@@ -141,9 +146,36 @@ New evaluations and embedding caches go under
 ignored `runs/benchmark/` at the repository root. For the binary whistle/noise
 CNN, use [`cnn/`](cnn/) instead of the representation benchmark.
 
+## Supervised fine-tuning
+
+The fine-tuning comparison adapts the six neural encoders end-to-end on
+classification `all`, classification `balanced`, and seven-label detection.
+Training losses have no class weighting. Epochs are selected on validation;
+each model is then reinitialized and refitted on train + validation for that
+fixed duration. Evaluation uses batch size 1, FP32 and 1,000 test bootstrap
+resamples with one training seed.
+
+```bash
+python -m pip install -r experiments/finetuning/requirements.txt
+python experiments/finetuning/src/run_finetuning.py \
+  --output_dir runs/finetuning/reproduction
+```
+
+The [published fine-tuning results](experiments/finetuning/results/results.csv)
+and detailed evaluation reports are included.
+The [fine-tuning README](experiments/finetuning/README.md)
+documents the pinned initializations, recipes, resume behavior and verification
+without encoder weights or audio. Prediction and bootstrap arrays are omitted
+from the retained fine-tuning release; its metrics and uncertainties cannot be
+recomputed without generating these arrays again.
+
 ## Additional experiments
 
-The rebuttal additions include pretraining-size ablations, supervised encoder fine-tuning, open-set evaluation, CNN learning curves, and ROC/UMAP figures. See the [benchmark README](experiments/benchmark/README.md), [fine-tuning README](experiments/finetuning/README.md), and [CNN learning-curve README](cnn/learning_curve/README.md) for commands.
+The [pretraining directory](experiments/pretraining/README.md) documents the
+self-supervised training recipes and checkpoint provenance. The
+[CNN learning-curve README](cnn/learning_curve/README.md) describes the supervised
+training-set size experiment. CNN outputs are generated locally in `cnn/runs/`;
+dataset figures are written to `datasets_figures/output/`.
 
 ## License
 
