@@ -61,9 +61,9 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 
 ## Repository layout
 
-Start with the [repository guide](docs/START_HERE.md) to find the relevant code,
-result summaries and provenance checks. The [benchmark README](experiments/benchmark/README.md)
-provides evaluation commands and published results.
+Each experiment directory has its own README with installation instructions,
+commands and protocols. The [benchmark README](experiments/benchmark/README.md)
+describes the linear probing evaluation and generated tables.
 
 ```text
 .
@@ -83,9 +83,6 @@ provides evaluation commands and published results.
 │       ├── scripts/             # experiment launchers
 │       ├── src/                 # supervised encoder training
 │       └── results/             # manuscript results by model and seed
-├── docs/
-│   ├── START_HERE.md            # navigation guide
-│   └── provenance/             # audits, checkpoint mapping and archive inventory
 ├── tests/
 ├── Annotation_Pipeline.png
 ├── LICENSE-DATA
@@ -146,8 +143,6 @@ CNN, use [`cnn/`](cnn/) instead of the representation benchmark.
 ## Additional experiments
 
 The rebuttal additions include pretraining-size ablations, supervised encoder fine-tuning, open-set evaluation, CNN learning curves, and ROC/UMAP figures. See the [benchmark README](experiments/benchmark/README.md), [fine-tuning README](experiments/finetuning/README.md), and [CNN learning-curve README](cnn/learning_curve/README.md) for commands.
-
-The [camera-ready branch review](docs/provenance/camera-ready-review.md) records the source branches, integration decisions, result provenance, and remaining release checks.
 
 ## Authors
 
