@@ -1,0 +1,113 @@
+# @package _group_
+
+common:
+  fp16: true
+  log_format: json
+  log_interval: 1
+  seed: 42
+
+checkpoint:
+  save_dir: checkpoints/wav2vec2_base_44k_stride960
+  save_interval_updates: 5000
+  keep_interval_updates: 2
+  no_epoch_checkpoints: true
+
+task:
+  _name: audio_pretraining
+  data: ???
+  sample_rate: 44100
+  normalize: true
+  enable_padding: false
+  max_sample_size: 882000  # 20 seconds at 44.1 kHz
+  min_sample_size: 220500  # 5 seconds at 44.1 kHz
+
+dataset:
+  num_workers: 0
+  max_tokens: 882000
+  skip_invalid_size_inputs_valid_test: true
+
+distributed_training:
+  distributed_world_size: 1
+  ddp_backend: legacy_ddp
+
+criterion:
+  _name: wav2vec
+  infonce: true
+  log_keys: ["prob_perplexity", "code_perplexity", "temp"]
+  loss_weights: [0.1, 10]
+
+optimization:
+  max_update: 400000
+  lr: [0.0005]
+  update_freq: [1]
+  clip_norm: 10.0
+
+optimizer:
+  _name: adam
+  adam_betas: (0.9,0.98)
+  adam_eps: 1e-06
+  weight_decay: 0.01
+
+lr_scheduler:
+  _name: polynomial_decay
+  warmup_updates: 32000
+
+model:
+  _name: wav2vec2
+
+  # Same geometry family as OpenWhistle-Wav2Vec2.0:
+  # total stride is 15 * 2 * 2 * 2 * 2 * 2 * 2 = 960 samples.
+  # At 44.1 kHz this gives one Transformer frame every 21.77 ms.
+  conv_feature_layers: "[(512, 30, 15), (512, 3, 2), (512, 3, 2), (512, 3, 2), (512, 3, 2), (512, 2, 2), (512, 2, 2)]"
+  extractor_mode: default
+  conv_bias: false
+
+  encoder_layers: 12
+  encoder_embed_dim: 768
+  encoder_ffn_embed_dim: 3072
+  encoder_attention_heads: 8
+  layer_norm_first: true
+
+  dropout: 0.1
+  attention_dropout: 0.1
+  activation_dropout: 0.1
+  encoder_layerdrop: 0.05
+  dropout_input: 0.1
+  dropout_features: 0.1
+  feature_grad_mult: 0.1
+
+  latent_temp: [2.0, 0.5, 0.999995]
+  require_same_masks: true
+  quantize_targets: true
+  final_dim: 256
+  latent_vars: 320
+  latent_groups: 2
+  latent_dim: 0
+  quantizer_depth: 1
+  quantizer_factor: 3
+  num_negatives: 100
+  cross_sample_negatives: 0
+  codebook_negatives: 0
+  logit_temp: 0.1
+
+  # 10 frames * 21.77 ms = about 218 ms, close to the previous OpenWhistle run.
+  mask_prob: 0.65
+  mask_length: 10
+  mask_selection: static
+  mask_other: 0
+  no_mask_overlap: false
+  mask_min_space: 1
+
+  mask_channel_prob: 0.0
+  mask_channel_length: 10
+  mask_channel_selection: static
+  mask_channel_other: 0
+  no_mask_channel_overlap: false
+  mask_channel_min_space: 1
+
+  # 128 frames covers about 2.79 s at 45.94 Hz.
+  conv_pos: 128
+  conv_pos_groups: 16
+
+  required_seq_len_multiple: 2
+  crop_seq_to_multiple: 1

@@ -75,7 +75,7 @@ provides evaluation commands and published results.
 ├── datasets_figures/            # dataset overview figures
 ├── experiments/
 │   ├── pretraining/
-│   │   └── ANNpretraining/      # self-supervised training implementation and launcher
+│   │   └── src/                 # data preparation, native training and export
 │   ├── benchmark/
 │   │   ├── src/                 # frozen embeddings and logistic regression
 │   │   └── results/             # published scores and tables
