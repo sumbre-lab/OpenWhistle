@@ -5,6 +5,7 @@ from contextlib import ExitStack, redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,31 @@ from hf_datasets import CLASSIFICATION_LABEL_NAMES, DETECTION_ONE_HOT_COLUMNS
 
 
 class FinetuningTableTests(unittest.TestCase):
+    def test_single_job_uses_the_campaign_recipe_and_rejects_invalid_task_configs(self):
+        import finetune as training
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "unused"
+            for model in config.MODELS:
+                for task in config.TASKS:
+                    dataset_name, dataset_config = config.TASK_DATASETS[task]
+                    command = ["finetune", "--model", model[0], "--dataset_name", dataset_name,
+                               "--dataset_config", dataset_config, "--output_dir", str(output),
+                               "--refit_train_validation"]
+                    with patch.object(sys, "argv", command):
+                        args = training.parse_args()
+                    self.assertEqual(args.model_id, model[3])
+                    for name, value in config.recipe(model[0], task).items():
+                        self.assertEqual(getattr(args, name), value)
+            for dataset_name, dataset_config in (("classification", "default"), ("detection", "all")):
+                command = ["finetune", "--model", "wav2vec2", "--dataset_name", dataset_name,
+                           "--dataset_config", dataset_config, "--output_dir", str(output)]
+                with patch.object(sys, "argv", command), redirect_stderr(io.StringIO()), \
+                        self.assertRaises(SystemExit) as stopped:
+                    training.parse_args()
+                self.assertEqual(stopped.exception.code, 2)
+            self.assertFalse(output.exists())
+
     def test_models_and_evaluations_share_the_benchmark_registry(self):
         from benchmark_config import EVALUATIONS, EVALUATION_SETTINGS
         from benchmark_models import BENCHMARK_MODELS, result_model_id
@@ -101,6 +127,8 @@ class FinetuningTableTests(unittest.TestCase):
             self.assertEqual(archived[0].read_bytes(), b"fixture checkpoint")
 
     def test_dry_run_prepares_eighteen_jobs_with_one_seed_and_common_evaluation(self):
+        import finetune as training
+
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "new-run"
             result = subprocess.run([
@@ -109,7 +137,15 @@ class FinetuningTableTests(unittest.TestCase):
                 check=True, capture_output=True, text=True)
             commands = [line for line in result.stdout.splitlines() if " -u " in line]
             self.assertEqual(len(commands), 18)
-            for command in commands:
+            for command, (model, task) in zip(commands, ((m, t) for m in config.MODELS for t in config.TASKS)):
+                tokens = shlex.split(command)
+                self.assertEqual(Path(tokens[2]).name, "finetune.py")
+                with patch.object(sys, "argv", tokens[2:]):
+                    args = training.parse_args()
+                self.assertEqual(args.model_id, model[3])
+                self.assertEqual((args.dataset_name, args.dataset_config), config.TASK_DATASETS[task])
+                for name, value in config.recipe(model[0], task).items():
+                    self.assertEqual(getattr(args, name), value)
                 self.assertIn("--seed 42 ", command)
                 self.assertIn("--eval_batch_size 1 ", command)
                 self.assertIn("--eval_precision none", command)
@@ -122,8 +158,7 @@ class FinetuningTableTests(unittest.TestCase):
             configs = [command.split("--dataset_config ")[1].split()[0]
                        if "--dataset_config " in command else "default" for command in commands]
             self.assertEqual(configs, ["all", "balanced", "default"] * 6)
-            wav2vec2_class = next(c for c in commands if "hf_classification.py" in c and config.MODEL_ID in c)
-            self.assertIn("--model_id dolphinteam/OpenWhistle-Wav2Vec2.0", wav2vec2_class)
+            wav2vec2_class = next(c for c in commands if "--model wav2vec2 " in c and "--dataset_config all" in c)
             self.assertEqual(config.MODEL_REVISIONS[config.MODEL_ID],
                              "b5f156048fc4da1d8d8b7345b61ebef1257b365c")
             self.assertIn("/wav2vec2/classification/seed_42", wav2vec2_class)
@@ -132,9 +167,8 @@ class FinetuningTableTests(unittest.TestCase):
             continual = [c for c in commands if "--feature_mode btb3_concat" in c]
             self.assertEqual(len(continual), 3)
             self.assertTrue(all("--sample_rate 16000" in c and "--batch_size 4" in c for c in continual))
-            scratch = [c for c in commands if "--backbone aves_scratch" in c]
+            scratch = [c for c in commands if "--model aves_scratch" in c]
             self.assertEqual(len(scratch), 3)
-            self.assertTrue(all("dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct" in c for c in scratch))
             self.assertFalse(output.exists())
 
     def write_fixture(self, output):
@@ -258,22 +292,16 @@ class FinetuningTableTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Missing or duplicate evaluations"):
                 validate_results(release)
 
-    def test_training_entrypoints_reject_removed_weighting_flag(self):
-        import finetune_classification
-        import finetune_detection
-        import finetune_hf_classification
-        import finetune_hf_detection_map
+    def test_training_entrypoint_rejects_removed_weighting_flag(self):
+        import finetune as training
 
         for model in (config.MODELS[0], next(model for model in config.MODELS if model[0] == "wav2vec2")):
             for task in ("classification", "detection"):
-                module = ((finetune_hf_classification if task == "classification" else finetune_hf_detection_map)
-                          if model[0] in config.HF_MODELS else
-                          (finetune_classification if task == "classification" else finetune_detection))
                 command = table.make_command(Path("/tmp/unused-finetuning-test"), model, task, 42)
                 error = io.StringIO()
                 with patch.object(sys, "argv", command[2:] + ["--class_weight", "balanced"]), \
                         redirect_stderr(error), self.assertRaises(SystemExit) as stopped:
-                    module.parse_args()
+                    training.parse_args()
                 self.assertEqual(stopped.exception.code, 2)
                 self.assertIn("unrecognized arguments", error.getvalue())
 
@@ -329,11 +357,8 @@ class FinetuningTableTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "evaluation settings"):
                 table.write_results(output, 42, 2)
 
-    def test_all_training_entrypoints_keep_training_batches_and_export_test_predictions(self):
-        import finetune_classification as classification
-        import finetune_detection as detection
-        import finetune_hf_classification as hf_classification
-        import finetune_hf_detection_map as hf_detection
+    def test_unified_training_keeps_all_eighteen_recipes_and_exports_test_predictions(self):
+        import finetune as module
 
         class TinyModel(torch.nn.Module):
             def __init__(self, num_labels):
@@ -365,9 +390,6 @@ class FinetuningTableTests(unittest.TestCase):
                 for task in config.TASKS:
                     with self.subTest(model=model[0], task=task), ExitStack() as stack:
                         is_classification = task != "detection"
-                        is_hf = model[0] in config.HF_MODELS
-                        module = ((hf_classification if is_hf else classification)
-                                  if is_classification else (hf_detection if is_hf else detection))
                         command = table.make_command(Path(directory), model, task, 42)
                         with patch.object(sys, "argv", command[2:]):
                             args = module.parse_args()
@@ -393,32 +415,22 @@ class FinetuningTableTests(unittest.TestCase):
                         if is_classification:
                             stack.enter_context(patch.object(module, "load_classification_splits",
                                                              return_value=(splits, SimpleNamespace(names=labels))))
-                            stack.enter_context(patch.object(module, "ClassificationDataset", side_effect=lambda x: x))
                         else:
                             stack.enter_context(patch.object(module, "load_detection_splits", return_value=(splits, labels)))
-                            stack.enter_context(patch.object(module, "DetectionDataset", side_effect=lambda x: x))
-                        if is_hf:
-                            stack.enter_context(patch.object(module.AutoFeatureExtractor, "from_pretrained",
-                                                             return_value=SimpleNamespace(sampling_rate=44100)))
-                            def make_tiny(*_args):
-                                tiny = TinyModel(num_labels)
-                                tiny.model_revision = config.MODEL_REVISIONS[args.model_id]
-                                return tiny
-
-                            factory = stack.enter_context(patch.object(
-                                module, "HFAudioClassifier", side_effect=make_tiny))
-                            stack.enter_context(patch.object(module, "HFAudioCollator", return_value=collate))
-                        else:
-                            factory = stack.enter_context(patch.object(
-                                module, "make_model_and_collator",
-                                side_effect=lambda *_args: (TinyModel(num_labels), collate, 44100)))
+                        stack.enter_context(patch.object(module, "AudioDataset", side_effect=lambda x, _task: x))
+                        factory = stack.enter_context(patch.object(
+                            module, "make_model_and_collator",
+                            side_effect=lambda *_args: (TinyModel(num_labels), collate, 44100)))
+                        refit_factory = stack.enter_context(patch.object(
+                            module, "make_refit_model", side_effect=lambda *_args: TinyModel(num_labels)))
                         evaluation = stack.enter_context(patch.object(module, "evaluate", wraps=module.evaluate))
                         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                             module.main()
                         self.assertEqual(batches, [2, 1, 1])
                         self.assertEqual([call.args[-1] for call in evaluation.call_args_list], ["none", "none"])
                         result = json.loads((args.output_dir / "results.json").read_text())
-                        self.assertEqual(factory.call_count, 2 if args.refit_train_validation else 1)
+                        self.assertEqual(factory.call_count, 1)
+                        self.assertEqual(refit_factory.call_count, int(args.refit_train_validation))
                         self.assertEqual(result["final_training"]["split"],
                                          "train+validation" if args.refit_train_validation else "train")
                         self.assertEqual(len(result["refit_history"]), int(args.refit_train_validation))

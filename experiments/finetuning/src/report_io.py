@@ -15,8 +15,7 @@ def clean_report(report):
 
     cleaned = without_null_fields(report)
     arguments = cleaned.get("training_args", {})
-    # Model identity is recorded at the top level. Native AVES ignores the
-    # parser's default BioLingual model_id, so copying it would be misleading.
+    # Model identity and optional per-job bootstrap metadata live at the top level.
     for key in ("output_dir", "model_id", "num_bootstrap"):
         arguments.pop(key, None)
     if arguments.get("class_weight") == "none":

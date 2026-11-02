@@ -1,4 +1,4 @@
-"""Shared final train+validation refit for native and Hugging Face encoders."""
+"""Shared optimizer setup and final train+validation refit."""
 import json
 import math
 
@@ -20,6 +20,25 @@ def validate_refit_output(args):
         raise ValueError("Train+validation refit requires a new or empty output directory.")
 
 
+def make_training_components(model, train_loader, args, device):
+    optimizer = torch.optim.AdamW(
+        [{"params": list(model.backbone_parameters()), "lr": args.learning_rate},
+         {"params": list(model.head_parameters()), "lr": args.head_learning_rate}],
+        weight_decay=args.weight_decay,
+    )
+    updates_per_epoch = math.ceil(len(train_loader) / args.gradient_accumulation_steps)
+    # Preserve the schedule as a function of epoch across selection and refit.
+    # Selection determines when to stop, rather than changing the LR schedule.
+    total_updates = updates_per_epoch * args.epochs
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=round(total_updates * args.warmup_ratio),
+        num_training_steps=total_updates,
+    )
+    scaler = torch.amp.GradScaler(
+        "cuda", enabled=device.type == "cuda" and args.mixed_precision == "float16")
+    return optimizer, scheduler, scaler
+
+
 def refit_model(args, best_epoch, model_factory, loaders, loader_kwargs, train_epoch,
                 device, set_seed, label_names, metric, validation_score):
     """Reinitialize all weights and optimizer state; never evaluate validation/test here."""
@@ -27,16 +46,8 @@ def refit_model(args, best_epoch, model_factory, loaders, loader_kwargs, train_e
     model = model_factory().to(device)
     dataset = ConcatDataset([loaders["train"].dataset, loaders["validation"].dataset])
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, **loader_kwargs)
-    optimizer = torch.optim.AdamW(
-        [{"params": list(model.backbone_parameters()), "lr": args.learning_rate},
-         {"params": list(model.head_parameters()), "lr": args.head_learning_rate}],
-        weight_decay=args.weight_decay)
+    optimizer, scheduler, scaler = make_training_components(model, loader, args, device)
     updates_per_epoch = math.ceil(len(loader) / args.gradient_accumulation_steps)
-    total_updates = updates_per_epoch * args.epochs
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=round(total_updates * args.warmup_ratio),
-        num_training_steps=total_updates)
-    scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda" and args.mixed_precision == "float16")
     print(f"Refit from pretrained initialization: train+validation, {len(dataset)} clips, "
           f"{best_epoch} fixed epochs; schedule horizon={args.epochs} epochs.", flush=True)
     history = []

@@ -73,8 +73,8 @@ class FinetuningReportTests(unittest.TestCase):
         root = ROOT / "experiments/finetuning"
         expected = {"README.md", "requirements.txt"}
         source = {
-            "checkpoint_io.py", "finetuning_config.py", "export_finetuning_results.py", "finetune_classification.py",
-            "finetune_detection.py", "finetune_hf_classification.py", "finetune_hf_detection_map.py",
+            "checkpoint_io.py", "finetuning_config.py", "export_finetuning_results.py",
+            "finetune.py", "finetuning_models.py",
             "refit_protocol.py", "report_io.py", "run_finetuning.py",
         }
         expected.update(f"src/{name}" for name in source)

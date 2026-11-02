@@ -19,25 +19,18 @@ import numpy as np  # noqa: E402
 
 from finetuning_config import (  # noqa: E402
     ROOT, RUNS_DIR, MODELS, MODEL_REVISIONS, RESULT_MODEL_IDS,
-    HF_MODELS, TASKS, TASK_DATASETS, SEED, NUM_BOOTSTRAP, CSV_FIELDS, recipe, run_manifest,
+    TASKS, TASK_DATASETS, SEED, NUM_BOOTSTRAP, CSV_FIELDS, recipe, run_manifest,
 )
 from run_benchmark import environment_record  # noqa: E402
 from hf_datasets import CLASSIFICATION_LABEL_NAMES, DETECTION_ONE_HOT_COLUMNS  # noqa: E402
 
 
 def make_command(output, model, task, seed):
-    key, _, _, model_id = model
-    prefix = "finetune_hf" if key in HF_MODELS else "finetune"
-    suffix = "_detection_map.py" if key in HF_MODELS else "_detection.py"
-    script = prefix + (suffix if task == "detection" else "_classification.py")
-    command = [sys.executable, "-u", str(ROOT / "src" / script),
+    key = model[0]
+    dataset_name, dataset_config = TASK_DATASETS[task]
+    command = [sys.executable, "-u", str(ROOT / "src/finetune.py"),
                "--output_dir", str(output / key / task / f"seed_{seed}"), "--seed", str(seed)]
-    if key in (*HF_MODELS, "biolingual", "aves_scratch"):
-        command += ["--model_id", model_id]
-    if key not in HF_MODELS:
-        command += ["--backbone", key]
-    if task != "detection":
-        command += ["--dataset_config", "balanced" if task == "balanced" else "all"]
+    command += ["--model", key, "--dataset_name", dataset_name, "--dataset_config", dataset_config]
     for option, value in recipe(key, task).items():
         command += [f"--{option}"] if value is True else [f"--{option}", str(value)]
     return command

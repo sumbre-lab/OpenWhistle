@@ -63,8 +63,9 @@ python experiments/finetuning/src/run_finetuning.py \
   --output_dir runs/finetuning/reproduction
 ```
 
-The Python launcher runs 18 jobs sequentially. It fixes seed 42 and 1,000
-bootstrap resamples, matching the benchmark. Add `--resume` to skip compatible
+The Python launcher runs 18 jobs sequentially through [finetune.py](src/finetune.py),
+the shared training entry point for both tasks and all six encoders. It fixes
+seed 42 and 1,000 bootstrap resamples, matching the benchmark. Add `--resume` to skip compatible
 completed evaluations. An interrupted job restarts
 from pretrained initialization; its partial files move to `interrupted/`.
 Resume requires matching recipes, model initialization and software environment.
@@ -77,6 +78,21 @@ experiment. Without `--output_dir`, a new directory is created at
 `runs/finetuning/run-YYYYMMDD-HHMMSS/` at the repository root. Local run files
 are ignored by Git; `results/` contains the published results.
 The launcher disables tokenizer parallelism.
+
+For one evaluation, select a model and dataset configuration directly:
+
+```bash
+python experiments/finetuning/src/finetune.py \
+  --model wav2vec2 --dataset_name classification --dataset_config all \
+  --output_dir runs/finetuning/wav2vec2-all --refit_train_validation
+```
+
+The model and task select the same recipe as the full campaign. Classification
+accepts `all` or `balanced`; detection uses
+`--dataset_name detection --dataset_config default`.
+Encoder loading and audio collators are defined in
+[finetuning_models.py](src/finetuning_models.py); both tasks share the training,
+validation and refit loops.
 
 ## Training and evaluation protocol
 

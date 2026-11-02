@@ -1,4 +1,4 @@
-"""Validate verified native AVES weights and end-to-end backpropagation."""
+"""Validate pretrained encoder adapters, pooling and end-to-end backpropagation."""
 import hashlib
 import json
 from pathlib import Path
@@ -11,10 +11,73 @@ from unittest.mock import patch
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments/finetuning/src"))
-import finetune_classification as training  # noqa: E402
+import finetuning_models as training  # noqa: E402
 
 
 class AvesFinetuningTests(unittest.TestCase):
+    def test_hf_adapter_keeps_masked_pooling_and_three_view_order(self):
+        class Encoder(torch.nn.Module):
+            config = SimpleNamespace(hidden_size=2)
+
+            def __init__(self):
+                super().__init__()
+                self.scale = torch.nn.Parameter(torch.tensor(1.0))
+
+            def forward(self, input_values, attention_mask):
+                hidden = torch.stack((input_values, 2 * input_values), dim=-1) * self.scale
+                return SimpleNamespace(last_hidden_state=hidden)
+
+            def _get_feature_vector_attention_mask(self, _length, mask):
+                return mask
+
+        model_id = "dolphinteam/OpenWhistle-Wav2Vec2.0"
+        with patch.object(training.AutoModel, "from_pretrained", side_effect=lambda *_a, **_kw: Encoder()) as load:
+            standard = training.HFAudioClassifier(model_id, "standard", 2, 0.0)
+            with torch.no_grad():
+                standard.classifier.weight.copy_(torch.eye(2))
+                standard.classifier.bias.zero_()
+            output = standard(input_values=torch.tensor([[1.0, 3.0, 100.0]]),
+                              attention_mask=torch.tensor([[1, 1, 0]]))
+            torch.testing.assert_close(output, torch.tensor([[2.0, 4.0]]))
+            output.sum().backward()
+            self.assertIsNotNone(standard.encoder.scale.grad)
+            views = training.HFAudioClassifier(model_id, "btb3_concat", 2, 0.0)
+            with torch.no_grad():
+                views.classifier.weight.zero_()
+                views.classifier.weight[0, 0] = 1
+                views.classifier.weight[1, 4] = 1
+                views.classifier.bias.zero_()
+            values = torch.arange(1, 7).float().reshape(6, 1).repeat(1, 2)
+            output = views(input_values=values, attention_mask=torch.ones_like(values))
+            torch.testing.assert_close(output, torch.tensor([[1.0, 3.0], [4.0, 6.0]]))
+            self.assertTrue(all(call.kwargs["revision"] == training.MODEL_REVISIONS[model_id]
+                                for call in load.call_args_list))
+
+    def test_biolingual_adapter_trains_audio_and_projection_and_freezes_text(self):
+        class Clap(torch.nn.Module):
+            config = SimpleNamespace(projection_dim=2)
+
+            def __init__(self):
+                super().__init__()
+                self.audio_model = torch.nn.Linear(3, 4)
+                self.audio_projection = torch.nn.Linear(4, 2)
+                self.text_model = torch.nn.Linear(3, 4)
+                self.text_projection = torch.nn.Linear(4, 2)
+
+            def get_audio_features(self, input_features):
+                return self.audio_projection(self.audio_model(input_features))
+
+        with patch.object(training.ClapModel, "from_pretrained", return_value=Clap()):
+            model = training.BioLingualClassifier("davidrrobinson/biolingual", 3, 0.0)
+            output = model(input_features=torch.randn(2, 3))
+            self.assertEqual(tuple(output.shape), (2, 3))
+            output.square().mean().backward()
+            for parameter in model.backbone_parameters():
+                self.assertTrue(parameter.requires_grad)
+                self.assertIsNotNone(parameter.grad)
+            for tower in (model.backbone.text_model, model.backbone.text_projection):
+                self.assertTrue(all(not p.requires_grad and p.grad is None for p in tower.parameters()))
+
     def test_native_export_is_verified_loaded_for_training_and_backpropagates(self):
         class Encoder(torch.nn.Module):
             def __init__(self):

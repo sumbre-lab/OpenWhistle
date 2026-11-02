@@ -14,7 +14,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments/finetuning/src"))
-import finetune_hf_classification as training  # noqa: E402
+import finetune as training  # noqa: E402
 from metrics import bootstrap_metric_scores, score_predictions  # noqa: E402
 
 
@@ -42,7 +42,7 @@ class RefitTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             output = Path(directory) / "refit"
-            command = ["finetune", "--model_id", "dolphinteam/OpenWhistle-Wav2Vec2.0",
+            command = ["finetune", "--model", "wav2vec2", "--dataset_name", "classification",
                        "--output_dir", str(output), "--dataset_config", "all",
                        "--epochs", "6", "--patience", "1", "--batch_size", "2",
                        "--eval_batch_size", "1", "--eval_precision", "none",
@@ -76,7 +76,8 @@ class RefitTests(unittest.TestCase):
                     model.encoder.add_(10 if is_selection else 1)
                 return 0.1
 
-            def evaluate(model, loader, device, precision):
+            def evaluate(model, loader, device, precision, *, dataset_name):
+                self.assertEqual(dataset_name, "classification")
                 data = list(loader.dataset)
                 evaluations.append(data)
                 self.assertEqual(precision, "none")
@@ -96,11 +97,10 @@ class RefitTests(unittest.TestCase):
             stack.enter_context(patch("torch.cuda.is_available", return_value=False))
             stack.enter_context(patch.object(training, "load_classification_splits",
                                              return_value=(splits, SimpleNamespace(names=["a", "b"]))))
-            stack.enter_context(patch.object(training, "ClassificationDataset", side_effect=lambda x: x))
-            stack.enter_context(patch.object(training.AutoFeatureExtractor, "from_pretrained",
-                                             return_value=SimpleNamespace(sampling_rate=44100)))
-            stack.enter_context(patch.object(training, "HFAudioCollator", return_value=lambda x: x))
-            stack.enter_context(patch.object(training, "HFAudioClassifier", side_effect=make_model))
+            stack.enter_context(patch.object(training, "AudioDataset", side_effect=lambda x, _task: x))
+            stack.enter_context(patch.object(training, "make_model_and_collator",
+                                             side_effect=lambda *_args: (make_model(), lambda x: x, 44100)))
+            stack.enter_context(patch.object(training, "make_refit_model", side_effect=make_model))
             stack.enter_context(patch.object(training, "train_epoch", side_effect=train))
             stack.enter_context(patch.object(training, "evaluate", side_effect=evaluate))
             with redirect_stdout(io.StringIO()):
