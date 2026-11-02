@@ -12,7 +12,6 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import f1_score
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
@@ -30,21 +29,25 @@ from finetune_classification import (  # noqa: E402
     move_batch,
     public_metrics,
     set_seed,
+    save_test_predictions,
+    model_identity,
 )
 from hf_datasets import (  # noqa: E402
-    DETECTION_ONE_HOT_COLUMNS,
     get_detection_label_vector,
     load_detection_splits,
 )
 from metrics import MeanAveragePrecision  # noqa: E402
 from models import load_waveform  # noqa: E402
+from refit_protocol import add_refit_argument, refit_model, validate_refit_output  # noqa: E402
+from checkpoint_io import save_checkpoint  # noqa: E402
+from report_io import write_report  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--backbone",
-        choices=("aves_bio", "aves_core", "biolingual"),
+        choices=("aves_bio", "aves_core", "aves_scratch", "biolingual"),
         required=True,
     )
     parser.add_argument("--model_id", default="davidrrobinson/biolingual")
@@ -53,6 +56,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--patience", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--eval_batch_size", type=int, default=None,
+                        help="Validation/test batch size; defaults to training batch size.")
+    parser.add_argument("--eval_precision", choices=("none", "float16", "bfloat16"),
+                        default=None, help="Validation/test autocast; defaults to training precision.")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=1e-5)
     parser.add_argument("--head_learning_rate", type=float, default=1e-4)
@@ -68,6 +75,7 @@ def parse_args() -> argparse.Namespace:
         choices=("none", "float16", "bfloat16"),
         default="float16",
     )
+    add_refit_argument(parser)
     return parser.parse_args()
 
 
@@ -81,7 +89,7 @@ class DetectionDataset(Dataset):
     def __getitem__(self, index):
         row = self.split[index]
         waveform, sample_rate = load_waveform(row["audio"])
-        labels = np.asarray(get_detection_label_vector(row), dtype=np.float32)
+        labels = get_detection_label_vector(row)
         return waveform, sample_rate, labels
 
 
@@ -105,23 +113,13 @@ def evaluate(model, loader, device, precision) -> dict:
         targets.append(target.cpu())
         scores.append(logits.sigmoid().float().cpu())
 
-    targets_tensor = torch.cat(targets)
-    scores_tensor = torch.cat(scores)
     map_metric = MeanAveragePrecision()
-    map_metric.update(scores_tensor, targets_tensor)
-    predictions = (scores_tensor >= 0.5).to(torch.int64)
+    map_metric.update(torch.cat(scores), torch.cat(targets))
     return {
         "loss": float(np.mean(losses)),
         "map": float(map_metric.get_primary_metric()),
-        "micro_f1": float(
-            f1_score(
-                targets_tensor.numpy(),
-                predictions.numpy(),
-                average="micro",
-                zero_division=0,
-            )
-        ),
-        "per_label_ap": map_metric.ap.get_metric().tolist(),
+        "labels": torch.cat(targets).tolist(),
+        "predictions": torch.cat(scores).tolist(),
     }
 
 
@@ -164,8 +162,12 @@ def train_epoch(
 
 def main() -> None:
     args = parse_args()
+    validate_refit_output(args)
     if args.gradient_accumulation_steps < 1:
         raise ValueError("--gradient_accumulation_steps must be at least 1.")
+    if args.batch_size < 1 or (args.eval_batch_size is not None and args.eval_batch_size < 1):
+        raise ValueError("Batch sizes must be positive.")
+    eval_precision = args.eval_precision or args.mixed_precision
     set_seed(args.seed)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -180,7 +182,6 @@ def main() -> None:
     model.to(device)
 
     loader_kwargs = {
-        "batch_size": args.batch_size,
         "collate_fn": collator,
         "num_workers": args.num_workers,
         "pin_memory": device.type == "cuda",
@@ -197,6 +198,8 @@ def main() -> None:
         split_name: DataLoader(
             DetectionDataset(splits[split_name]),
             shuffle=split_name == "train",
+            batch_size=(args.batch_size if split_name == "train"
+                        else args.eval_batch_size or args.batch_size),
             **loader_kwargs,
         )
         for split_name in ("train", "validation", "test")
@@ -229,6 +232,8 @@ def main() -> None:
         if parameter.requires_grad
     )
     trainable_head = sum(parameter.numel() for parameter in head_parameters)
+    if trainable_backbone == 0:
+        raise RuntimeError("The audio backbone is frozen; end-to-end fine-tuning aborted.")
     print(
         f"device={device} sample_rate={sample_rate} labels={label_names}\n"
         f"trainable audio backbone parameters={trainable_backbone:,}; "
@@ -253,7 +258,7 @@ def main() -> None:
             model,
             loaders["validation"],
             device,
-            args.mixed_precision,
+            eval_precision,
         )
         epoch_result = {
             "epoch": epoch,
@@ -266,7 +271,7 @@ def main() -> None:
         if validation["map"] > best_validation_map:
             best_validation_map = validation["map"]
             epochs_without_improvement = 0
-            torch.save(
+            save_checkpoint(
                 {
                     "model": model.checkpoint_state(),
                     "epoch": epoch,
@@ -282,27 +287,43 @@ def main() -> None:
                 print(f"Early stopping after epoch {epoch}.")
                 break
 
-    checkpoint = torch.load(best_path, map_location=device, weights_only=False)
-    model.load_checkpoint_state(checkpoint["model"])
-    test = evaluate(model, loaders["test"], device, args.mixed_precision)
+    checkpoint = torch.load(best_path, map_location="cpu", weights_only=False)
+    best_epoch = checkpoint["epoch"]
+    final_training = dict(split="train", epochs=best_epoch, checkpoint="best.pt")
+    refit_history = []
+    if args.refit_train_validation:
+        del model, optimizer, scheduler, scaler, backbone_parameters, head_parameters, checkpoint
+        model, final_training, refit_history = refit_model(
+            args, best_epoch, lambda: make_model_and_collator(args, len(label_names), device)[0],
+            loaders, loader_kwargs, train_epoch, device, set_seed, label_names,
+            "map", best_validation_map)
+    else:
+        model.load_checkpoint_state(checkpoint["model"])
+    test = evaluate(model, loaders["test"], device, eval_precision)
+    save_test_predictions(args.output_dir, test)
     results = {
         "protocol": "supervised_end_to_end_finetuning",
         "task": "multilabel_detection",
         "backbone": args.backbone,
-        "model_id": args.model_id if args.backbone == "biolingual" else args.backbone,
+        "model_id": model_identity(args)[0],
+        "model_revision": model_identity(args)[1],
         "dataset_config": "default",
+        "training_args": json.loads(json.dumps(vars(args), default=str)),
         "seed": args.seed,
         "sample_rate": sample_rate,
         "label_names": label_names,
         "trainable_backbone_parameters": trainable_backbone,
         "trainable_head_parameters": trainable_head,
-        "best_epoch": checkpoint["epoch"],
-        "validation_map": checkpoint["validation_map"],
-        "test": test,
+        "best_epoch": best_epoch,
+        "validation_map": best_validation_map,
+        "validation_score_scope": "Selection model trained on train only.",
+        "final_training": final_training,
+        "refit_history": refit_history,
+        "test": public_metrics(test),
         "history": history,
     }
     results_path = args.output_dir / "results.json"
-    results_path.write_text(json.dumps(results, indent=2) + "\n")
+    write_report(results_path, results)
     print(f"Test mAP: {test['map']:.4f}")
     print(f"Results: {results_path}")
 

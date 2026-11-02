@@ -1,0 +1,2 @@
+# Same audio encoders, datasets and evaluated dependencies as the frozen benchmark.
+-r ../benchmark/requirements.txt

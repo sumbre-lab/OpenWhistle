@@ -1,0 +1,185 @@
+{
+  "protocol": "supervised_end_to_end_finetuning",
+  "task": "multilabel_detection",
+  "backbone": "aves_scratch",
+  "model_id": "dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct",
+  "model_revision": "961e814923251f346f818440fb2e7883cd1331b1",
+  "dataset_config": "default",
+  "training_args": {
+    "backbone": "aves_scratch",
+    "seed": 42,
+    "epochs": 30,
+    "patience": 5,
+    "batch_size": 64,
+    "eval_batch_size": 1,
+    "eval_precision": "none",
+    "gradient_accumulation_steps": 1,
+    "learning_rate": 1e-05,
+    "head_learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "max_grad_norm": 1.0,
+    "dropout": 0.1,
+    "num_workers": 4,
+    "prefetch_factor": 4,
+    "mixed_precision": "float16",
+    "refit_train_validation": true
+  },
+  "seed": 42,
+  "sample_rate": 44100,
+  "label_names": [
+    "SW_Neo",
+    "SW_Luna",
+    "SW_Nikita",
+    "SW_Nana",
+    "SW_Yosefa",
+    "SW_Dana",
+    "NSW_1"
+  ],
+  "trainable_backbone_parameters": 94370944,
+  "trainable_head_parameters": 5383,
+  "best_epoch": 7,
+  "validation_map": 0.8254918456077576,
+  "validation_score_scope": "Selection model trained on train only.",
+  "final_training": {
+    "split": "train+validation",
+    "epochs": 7,
+    "checkpoint": "final.pt",
+    "num_examples": 4760,
+    "seed": 42,
+    "schedule_horizon_epochs": 30,
+    "updates_per_epoch": 75
+  },
+  "refit_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.4671362566947937
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.19527970413366955
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.12126070832212767
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.09178907290101052
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.07522505216300487
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.06466207593679428
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.0546992555509011
+    }
+  ],
+  "test": {
+    "loss": 0.08837031392045208,
+    "map": 0.8143812417984009
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.49127475220349526,
+      "validation": {
+        "loss": 0.24131582454290418,
+        "map": 0.2345598042011261
+      }
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.2084064385102641,
+      "validation": {
+        "loss": 0.16031677802425942,
+        "map": 0.5960620045661926
+      }
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.13625217072906032,
+      "validation": {
+        "loss": 0.11198000773133356,
+        "map": 0.7387617826461792
+      }
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.0982615939912296,
+      "validation": {
+        "loss": 0.09946842639418763,
+        "map": 0.8040475845336914
+      }
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.08142627499276592,
+      "validation": {
+        "loss": 0.09731994714626732,
+        "map": 0.8131493330001831
+      }
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.06853221885619624,
+      "validation": {
+        "loss": 0.0953494711040375,
+        "map": 0.8158803582191467
+      }
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.05789983395727411,
+      "validation": {
+        "loss": 0.095639082275392,
+        "map": 0.8254918456077576
+      }
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.04923169233746106,
+      "validation": {
+        "loss": 0.10153114073397038,
+        "map": 0.8245542645454407
+      }
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.043381324758933436,
+      "validation": {
+        "loss": 0.10548634376062269,
+        "map": 0.8139896392822266
+      }
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.035669625902007666,
+      "validation": {
+        "loss": 0.10987522511014028,
+        "map": 0.8110207319259644
+      }
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.030689084271509803,
+      "validation": {
+        "loss": 0.11434827726154168,
+        "map": 0.8104233145713806
+      }
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.026426615268592874,
+      "validation": {
+        "loss": 0.11480266686301634,
+        "map": 0.8018683195114136
+      }
+    }
+  ]
+}

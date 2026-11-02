@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import random
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -24,12 +26,17 @@ from transformers import ClapModel, ClapProcessor, get_linear_schedule_with_warm
 BENCHMARK_SRC = Path(__file__).resolve().parents[2] / "benchmark" / "src"
 sys.path.insert(0, str(BENCHMARK_SRC))
 
-from conf import get_aves_paths, get_aves_sample_rate  # noqa: E402
+from aves_artifacts import get_aves_paths, get_aves_sample_rate  # noqa: E402
 from hf_datasets import (  # noqa: E402
     CLASSIFICATION_BALANCED_CONFIG_NAME,
     load_classification_splits,
 )
+from benchmark_revisions import MODEL_REVISIONS  # noqa: E402
 from models import load_waveform  # noqa: E402
+from refit_protocol import add_refit_argument, refit_model, validate_refit_output  # noqa: E402
+from aves_models import AVES_SCRATCH_MODELS  # noqa: E402
+from checkpoint_io import save_checkpoint  # noqa: E402
+from report_io import write_report  # noqa: E402
 
 
 DEFAULT_BIOLINGUAL_ID = "davidrrobinson/biolingual"
@@ -44,24 +51,28 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--backbone",
-        choices=("aves_bio", "aves_core", "biolingual"),
+        choices=("aves_bio", "aves_core", "aves_scratch", "biolingual"),
         required=True,
     )
     parser.add_argument(
         "--model_id",
         default=DEFAULT_BIOLINGUAL_ID,
-        help="BioLingual Hugging Face model ID (ignored for AVES).",
+        help="Hugging Face model ID for BioLingual or native OpenWhistle AVES.",
     )
     parser.add_argument(
         "--dataset_config",
         default=CLASSIFICATION_BALANCED_CONFIG_NAME,
-        choices=("balanced", "unbalanced", "all"),
+        choices=("balanced", "all"),
     )
     parser.add_argument("--output_dir", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--patience", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--eval_batch_size", type=int, default=None,
+                        help="Validation/test batch size; defaults to training batch size.")
+    parser.add_argument("--eval_precision", choices=("none", "float16", "bfloat16"),
+                        default=None, help="Validation/test autocast; defaults to training precision.")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=1e-5)
     parser.add_argument("--head_learning_rate", type=float, default=1e-4)
@@ -82,6 +93,7 @@ def parse_args() -> argparse.Namespace:
         choices=("none", "float16", "bfloat16"),
         default="float16",
     )
+    add_refit_argument(parser)
     return parser.parse_args()
 
 
@@ -91,6 +103,9 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -196,11 +211,14 @@ class AvesClassifier(nn.Module):
         num_labels: int,
         dropout: float,
         device: torch.device,
+        model_path=None,
+        config_path=None,
     ):
         super().__init__()
         from aves import load_feature_extractor
 
-        model_path, config_path = get_aves_paths(variant)
+        if model_path is None or config_path is None:
+            model_path, config_path = get_aves_paths(variant)
         wrapper = load_feature_extractor(
             config_path=config_path,
             model_path=model_path,
@@ -245,10 +263,50 @@ class AvesClassifier(nn.Module):
         self.classifier.load_state_dict(state["classifier"])
 
 
+class NativeAvesClassifier(AvesClassifier):
+    """Train the same pinned native OpenWhistle export as the frozen benchmark."""
+
+    def __init__(self, model_id, num_labels, dropout, device):
+        from huggingface_hub import hf_hub_download
+
+        spec = next((s for s in AVES_SCRATCH_MODELS if s["model_id"] == model_id), None)
+        if spec is None:
+            raise ValueError(f"Unknown native AVES export: {model_id}")
+        paths = {}
+        for kind in ("model", "config"):
+            path = Path(hf_hub_download(repo_id=model_id, revision=spec["revision"],
+                                        filename=spec[f"{kind}_filename"]))
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            expected = spec["weights_sha256" if kind == "model" else "config_sha256"]
+            if digest != expected:
+                raise ValueError(f"Native AVES {kind} hash differs from the benchmark: {path}")
+            paths[kind] = path
+        config = json.loads(paths["config"].read_text())
+        if config.pop("sample_rate", spec["sample_rate"]) != spec["sample_rate"]:
+            raise ValueError("Unexpected native AVES sample rate.")
+        with tempfile.TemporaryDirectory(prefix="openwhistle-aves-finetune-") as directory:
+            config_path = Path(directory) / "model_config.json"
+            config_path.write_text(json.dumps(config))
+            super().__init__("scratch", num_labels, dropout, device,
+                             model_path=str(paths["model"]), config_path=str(config_path))
+        self.model_revision = spec["revision"]
+
+
+def model_identity(args):
+    if args.backbone == "aves_scratch":
+        spec = next((s for s in AVES_SCRATCH_MODELS if s["model_id"] == args.model_id), None)
+        if spec is None:
+            raise ValueError(f"Unknown native AVES export: {args.model_id}")
+        return args.model_id, spec["revision"]
+    if args.backbone == "biolingual":
+        return args.model_id, MODEL_REVISIONS.get(args.model_id)
+    return args.backbone, None
+
+
 class BioLingualClassifier(nn.Module):
     def __init__(self, model_id: str, num_labels: int, dropout: float):
         super().__init__()
-        self.backbone = ClapModel.from_pretrained(model_id)
+        self.backbone = ClapModel.from_pretrained(model_id, revision=MODEL_REVISIONS.get(model_id))
         # The text tower is not part of audio classification. Keeping it frozen
         # avoids presenting unused CLAP parameters as fine-tuned parameters.
         self.backbone.text_model.requires_grad_(False)
@@ -261,7 +319,8 @@ class BioLingualClassifier(nn.Module):
 
     def forward(self, **inputs) -> torch.Tensor:
         outputs = self.backbone.get_audio_features(**inputs)
-        return self.classifier(self.dropout(outputs.pooler_output))
+        features = outputs if isinstance(outputs, torch.Tensor) else outputs.pooler_output
+        return self.classifier(self.dropout(features))
 
     def backbone_parameters(self):
         yield from self.backbone.audio_model.parameters()
@@ -373,6 +432,9 @@ def make_model_and_collator(
     num_labels: int,
     device: torch.device,
 ):
+    if args.backbone == "aves_scratch":
+        model = NativeAvesClassifier(args.model_id, num_labels, args.dropout, device)
+        return model, AvesCollator(44100, args.max_duration_seconds), 44100
     if args.backbone.startswith("aves_"):
         variant = args.backbone.removeprefix("aves_")
         sample_rate = get_aves_sample_rate(variant)
@@ -385,7 +447,7 @@ def make_model_and_collator(
         collator = AvesCollator(sample_rate, args.max_duration_seconds)
         return model, collator, sample_rate
 
-    processor = ClapProcessor.from_pretrained(args.model_id)
+    processor = ClapProcessor.from_pretrained(args.model_id, revision=MODEL_REVISIONS.get(args.model_id))
     model = BioLingualClassifier(args.model_id, num_labels, args.dropout)
     sample_rate = int(processor.feature_extractor.sampling_rate)
     collator = BioLingualCollator(
@@ -394,6 +456,13 @@ def make_model_and_collator(
         args.max_duration_seconds,
     )
     return model, collator, sample_rate
+
+
+def save_test_predictions(output_dir: Path, metrics: dict) -> None:
+    """Save ordered test targets and predictions for the shared benchmark bootstrap."""
+    np.savez_compressed(output_dir / "test_predictions.npz",
+                        y_true=np.asarray(metrics["labels"]),
+                        y_pred=np.asarray(metrics["predictions"]))
 
 
 def public_metrics(metrics: dict) -> dict:
@@ -406,8 +475,12 @@ def public_metrics(metrics: dict) -> dict:
 
 def main() -> None:
     args = parse_args()
+    validate_refit_output(args)
     if args.gradient_accumulation_steps < 1:
         raise ValueError("--gradient_accumulation_steps must be at least 1.")
+    if args.batch_size < 1 or (args.eval_batch_size is not None and args.eval_batch_size < 1):
+        raise ValueError("Batch sizes must be positive.")
+    eval_precision = args.eval_precision or args.mixed_precision
     set_seed(args.seed)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -421,14 +494,15 @@ def main() -> None:
     )
     model.to(device)
 
+    loader_kwargs = dict(collate_fn=collator, num_workers=args.num_workers,
+                         pin_memory=device.type == "cuda")
     loaders = {
         split_name: DataLoader(
             ClassificationDataset(splits[split_name]),
-            batch_size=args.batch_size,
+            batch_size=(args.batch_size if split_name == "train"
+                        else args.eval_batch_size or args.batch_size),
             shuffle=split_name == "train",
-            collate_fn=collator,
-            num_workers=args.num_workers,
-            pin_memory=device.type == "cuda",
+            **loader_kwargs,
         )
         for split_name in ("train", "validation", "test")
     }
@@ -488,7 +562,7 @@ def main() -> None:
             model,
             loaders["validation"],
             device,
-            args.mixed_precision,
+            eval_precision,
         )
         epoch_result = {
             "epoch": epoch,
@@ -501,7 +575,7 @@ def main() -> None:
         if validation["macro_f1"] > best_validation_f1:
             best_validation_f1 = validation["macro_f1"]
             epochs_without_improvement = 0
-            torch.save(
+            save_checkpoint(
                 {
                     "model": model.checkpoint_state(),
                     "epoch": epoch,
@@ -517,21 +591,37 @@ def main() -> None:
                 print(f"Early stopping after epoch {epoch}.")
                 break
 
-    checkpoint = torch.load(best_path, map_location=device, weights_only=False)
-    model.load_checkpoint_state(checkpoint["model"])
-    test = evaluate(model, loaders["test"], device, args.mixed_precision)
+    checkpoint = torch.load(best_path, map_location="cpu", weights_only=False)
+    best_epoch = checkpoint["epoch"]
+    final_training = dict(split="train", epochs=best_epoch, checkpoint="best.pt")
+    refit_history = []
+    if args.refit_train_validation:
+        del model, optimizer, scheduler, scaler, backbone_parameters, head_parameters, checkpoint
+        model, final_training, refit_history = refit_model(
+            args, best_epoch, lambda: make_model_and_collator(args, len(label_names), device)[0],
+            loaders, loader_kwargs, train_epoch, device, set_seed, label_names,
+            "macro_f1", best_validation_f1)
+    else:
+        model.load_checkpoint_state(checkpoint["model"])
+    test = evaluate(model, loaders["test"], device, eval_precision)
+    save_test_predictions(args.output_dir, test)
     results = {
         "protocol": "supervised_end_to_end_finetuning",
         "backbone": args.backbone,
-        "model_id": args.model_id if args.backbone == "biolingual" else args.backbone,
+        "model_id": model_identity(args)[0],
+        "model_revision": model_identity(args)[1],
         "dataset_config": args.dataset_config,
+        "training_args": json.loads(json.dumps(vars(args), default=str)),
         "seed": args.seed,
         "sample_rate": sample_rate,
         "label_names": label_names,
         "trainable_backbone_parameters": trainable_backbone,
         "trainable_head_parameters": trainable_head,
-        "best_epoch": checkpoint["epoch"],
-        "validation_macro_f1": checkpoint["validation_macro_f1"],
+        "best_epoch": best_epoch,
+        "validation_macro_f1": best_validation_f1,
+        "validation_score_scope": "Selection model trained on train only.",
+        "final_training": final_training,
+        "refit_history": refit_history,
         "test": public_metrics(test),
         "test_confusion_matrix": confusion_matrix(
             test["labels"],
@@ -541,7 +631,7 @@ def main() -> None:
         "history": history,
     }
     results_path = args.output_dir / "results.json"
-    results_path.write_text(json.dumps(results, indent=2) + "\n")
+    write_report(results_path, results)
     print(f"Test macro-F1: {test['macro_f1']:.4f}")
     print(f"Results: {results_path}")
 
