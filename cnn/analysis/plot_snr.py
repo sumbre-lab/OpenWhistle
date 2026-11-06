@@ -113,7 +113,7 @@ def plot_dataset_snr(arrays, output_dir, diagnostic=False):
             raise ValueError('At least two distinct valid SNR values per dataset are required.')
     fig, ax = plt.subplots(figsize=(4.2, 4.4))
     draw_snr_detection_vs_gold_on_ax(ax, arrays[0], arrays[1], sns, slim_violin=True,
-                                   group_labels=('Pretraining', 'Classification\n(all)'))
+                                   group_labels=('Pretraining', 'Classification'))
     ax.set_ylabel('Estimated SNR (dB)')
     if diagnostic:
         ax.set_title('SNR (diagnostic subset)', fontweight='bold')
