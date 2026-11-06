@@ -2,10 +2,10 @@
   "protocol": "supervised_end_to_end_finetuning",
   "backbone": "aves_bio",
   "model_id": "aves_bio",
-  "dataset_config": "all",
+  "dataset_config": "unbalanced",
   "training_args": {
     "backbone": "aves_bio",
-    "dataset_config": "all",
+    "dataset_config": "unbalanced",
     "seed": 42,
     "epochs": 50,
     "patience": 15,

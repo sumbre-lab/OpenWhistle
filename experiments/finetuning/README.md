@@ -3,7 +3,7 @@
 End-to-end adaptation of the six neural encoders from the frozen-probe
 benchmark: AVES-core, BioLingual, AVES-bio, OpenWhistle wav2vec 2.0,
 OpenWhistle AVES from scratch, and continual AVES-bio. Each is evaluated on
-classification `all` (10 classes), classification `balanced` (6 classes),
+classification `unbalanced` (10 classes), classification `balanced` (6 classes),
 and detection `default` (7 binary labels).
 
 [Results](#results) · [Installation](#installation) · [Fine-tuning](#fine-tuning) ·
@@ -15,7 +15,7 @@ Scores are percentages: the full-test metric ± the standard deviation over
 1,000 test-clip bootstrap resamples. Each evaluation uses one training seed.
 Best point estimates in each column are bold.
 
-| Encoder | Classification (`all`) | Classification (`balanced`) | Detection |
+| Encoder | Classification (`unbalanced`) | Classification (`balanced`) | Detection |
 |---|---:|---:|---:|
 | AVES-core | 58.41 ± 2.24 | 78.89 ± 1.92 | 77.51 ± 2.17 |
 | BioLingual | 57.28 ± 2.03 | 80.35 ± 1.76 | 73.53 ± 1.90 |
@@ -28,8 +28,9 @@ Best point estimates in each column are bold.
 configuration, using the same identifiers and score columns as linear probing.
 The model directories under [results/](results/) retain 18 portable `results.json`
 reports with effective training settings, histories and detailed metrics.
-The directory name `classification/` denotes `all`; `balanced/` holds the other
-classification configuration. Local paths, null fields and unused CLI defaults
+The directory name `classification/` denotes `unbalanced`; `balanced/` holds the other
+classification configuration. The published scores were computed when
+`unbalanced` was named `all`; its files are unchanged. Local paths, null fields and unused CLI defaults
 are omitted. Checkpoints and prediction/bootstrap arrays remain local run outputs.
 
 ## Installation
@@ -83,12 +84,12 @@ For one evaluation, select a model and dataset configuration directly:
 
 ```bash
 python experiments/finetuning/src/finetune.py \
-  --model wav2vec2 --dataset_name classification --dataset_config all \
-  --output_dir runs/finetuning/wav2vec2-all --refit_train_validation
+  --model wav2vec2 --dataset_name classification --dataset_config unbalanced \
+  --output_dir runs/finetuning/wav2vec2-unbalanced --refit_train_validation
 ```
 
 The model and task select the same recipe as the full campaign. Classification
-accepts `all` or `balanced`; detection uses
+accepts `unbalanced` or `balanced`; detection uses
 `--dataset_name detection --dataset_config default`.
 Encoder loading and audio collators are defined in
 [finetuning_models.py](src/finetuning_models.py); both tasks share the training,
@@ -124,7 +125,7 @@ epoch changes the stopping point, not the schedule horizon.
 | AVES from scratch | 32 × 1; 50 / 15 | 64 × 1; 30 / 5 |
 | AVES continual | 4 × 8; 50 / 15 | 4 × 16; 30 / 5 |
 
-`all` and `balanced` share the classification recipe. AdamW uses encoder LR
+`unbalanced` and `balanced` share the classification recipe. AdamW uses encoder LR
 1e-5, head LR 1e-4, weight decay 0.01, dropout 0.1, and 10% warmup. BioLingual's
 classification encoder LR is 5e-6. Gradient clipping uses norm 1.0.
 
@@ -151,7 +152,7 @@ not isolate encoder freezing as the only changed factor.
 
 Each new model/configuration run produces `best.pt` for selection,
 `final.pt` for test evaluation, `results.json`, ordered test predictions and
-bootstrap scores. The directory name `classification/` denotes `all`;
+bootstrap scores. The directory name `classification/` denotes `unbalanced`;
 `balanced/` and `detection/` hold the other two configurations.
 The published results retain only `results.json` reports and `results.csv`.
 CSV scores and uncertainties are fractions; multiply by 100 for percentages.

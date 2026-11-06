@@ -6,7 +6,7 @@
   "training_args": {
     "feature_mode": "btb3_concat",
     "sample_rate": 16000,
-    "dataset_config": "all",
+    "dataset_config": "unbalanced",
     "seed": 42,
     "epochs": 50,
     "patience": 15,
@@ -27,7 +27,7 @@
     "mixed_precision": "float16"
   },
   "feature_mode": "btb3_concat",
-  "dataset_config": "all",
+  "dataset_config": "unbalanced",
   "seed": 42,
   "sample_rate": 16000,
   "label_names": [

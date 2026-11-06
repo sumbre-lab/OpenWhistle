@@ -103,7 +103,7 @@ def get_args():
         "--dataset_config",
         default=None,
         help=(
-            "Dataset subset/config. Classification supports all and balanced; "
+            "Dataset subset/config. Classification supports unbalanced and balanced; "
             "detection defaults to default."
         ),
     )
@@ -591,7 +591,7 @@ def main():
         dataset_config = args.dataset_config or CLASSIFICATION_BALANCED_CONFIG_NAME
         if dataset_config not in CLASSIFICATION_LABEL_NAMES:
             raise ValueError(
-                "Classification supports only all and balanced configurations."
+                "Classification supports only unbalanced and balanced configurations."
             )
 
     cached = load_complete_cached_embeddings(args, dataset_config, actual_sample_rate)

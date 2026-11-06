@@ -3,10 +3,10 @@
   "backbone": "biolingual",
   "model_id": "davidrrobinson/biolingual",
   "model_revision": "808bb50859ce7d0c0fcc2b233676c7ba9319107e",
-  "dataset_config": "all",
+  "dataset_config": "unbalanced",
   "training_args": {
     "backbone": "biolingual",
-    "dataset_config": "all",
+    "dataset_config": "unbalanced",
     "seed": 42,
     "epochs": 50,
     "patience": 15,

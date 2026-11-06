@@ -1,4 +1,4 @@
-Classification configuration: `all`. Scores in percent.
+Classification configuration: `unbalanced`. Scores in percent.
 
 | Method | Pretraining | Classification Macro-F1 | Detection mAP |
 |---|---|---:|---:|

@@ -43,7 +43,7 @@ class RefitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             output = Path(directory) / "refit"
             command = ["finetune", "--model", "wav2vec2", "--dataset_name", "classification",
-                       "--output_dir", str(output), "--dataset_config", "all",
+                       "--output_dir", str(output), "--dataset_config", "unbalanced",
                        "--epochs", "6", "--patience", "1", "--batch_size", "2",
                        "--eval_batch_size", "1", "--eval_precision", "none",
                        "--mixed_precision", "none", "--num_workers", "0",

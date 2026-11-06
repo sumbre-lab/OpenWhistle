@@ -14,7 +14,7 @@ CLASSIFICATION_BALANCED_CONFIG_NAME = "balanced"
 DETECTION_DATASET_ID = "dolphinteam/OpenWhistle-Detection-Finetuning"
 
 # ClassLabel order in the pinned classification dataset snapshot.
-_ALL_CLASS_NAMES = (
+_UNBALANCED_CLASS_NAMES = (
     "NSW_3",
     "NSW_2",
     "NSW_1",
@@ -27,7 +27,7 @@ _ALL_CLASS_NAMES = (
     "SW_Yosefa",
 )
 CLASSIFICATION_LABEL_NAMES = {
-    "all": _ALL_CLASS_NAMES,
+    "unbalanced": _UNBALANCED_CLASS_NAMES,
     "balanced": ("NSW_1", "SW_Luna", "SW_Nana", "SW_Neo", "SW_Nikita", "SW_Yosefa"),
 }
 
@@ -56,7 +56,7 @@ def load_classification_splits(
 ):
     if config_name not in CLASSIFICATION_LABEL_NAMES:
         raise ValueError(
-            "Classification supports only all and balanced configurations."
+            "Classification supports only unbalanced and balanced configurations."
         )
     ds = load_dataset(
         CLASSIFICATION_DATASET_ID,

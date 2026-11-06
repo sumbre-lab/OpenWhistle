@@ -138,7 +138,7 @@ protocol, pinned model/dataset revisions, resume options and table generation.
 Use `--dry_run` to inspect the 27 evaluation commands and one table generation
 command without downloading or writing files.
 
-The [published main table](experiments/benchmark/results/tables/benchmark_all.pdf),
+The [published main table](experiments/benchmark/results/tables/benchmark_unbalanced.pdf),
 [full results](experiments/benchmark/results/results.csv), and
 [evaluation protocol](experiments/benchmark/README.md#evaluation-protocol) are
 included in the repository. Prediction and label arrays remain in local runs.
@@ -149,7 +149,7 @@ CNN, use [`cnn/`](cnn/) instead of the representation benchmark.
 ## Supervised fine-tuning
 
 The fine-tuning comparison adapts the six neural encoders end-to-end on
-classification `all`, classification `balanced`, and seven-label detection.
+classification `unbalanced`, classification `balanced`, and seven-label detection.
 Training losses have no class weighting. Epochs are selected on validation;
 each model is then reinitialized and refitted on train + validation for that
 fixed duration. Evaluation uses batch size 1, FP32 and 1,000 test bootstrap

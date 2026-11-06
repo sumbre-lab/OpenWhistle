@@ -18,7 +18,7 @@ Classification is evaluated with **macro-F1** and detection with **mAP**.
 Scores are percentages, reported as the full-test metric ± the standard
 deviation over 1,000 bootstrap resamples. Best scores in each column are bold.
 
-| Representation | Classification (`all`) | Classification (`balanced`) | Detection |
+| Representation | Classification (`unbalanced`) | Classification (`balanced`) | Detection |
 |---|---:|---:|---:|
 | Spectral features | 14.15 ± 0.67 | 33.52 ± 2.06 | 26.34 ± 1.17 |
 | MFCCs | 21.22 ± 0.99 | 44.20 ± 2.20 | 33.91 ± 1.77 |
@@ -30,7 +30,7 @@ deviation over 1,000 bootstrap resamples. Best scores in each column are bold.
 | wav2vec 2.0 | 61.95 ± 2.79 | **81.40 ± 1.78** | **79.59 ± 1.83** |
 | AVES-bio (continual) | **64.75 ± 2.64** | 75.24 ± 2.01 | 73.87 ± 2.06 |
 
-- [Main table: PDF](results/tables/benchmark_all.pdf) · [LaTeX](results/tables/benchmark_all.tex)
+- [Main table: PDF](results/tables/benchmark_unbalanced.pdf) · [LaTeX](results/tables/benchmark_unbalanced.tex)
 - [Balanced classification: PDF](results/tables/benchmark_balanced.pdf) · [LaTeX](results/tables/benchmark_balanced.tex)
 - [Overview with all scores and uncertainties](results/tables/benchmark_overview.md)
 - [Full-precision CSV](results/results.csv)
@@ -57,8 +57,8 @@ Run all commands from the repository root.
 
 ### Full benchmark
 
-Evaluate all nine representations on classification `all`, classification
-`balanced` and detection:
+Evaluate all nine representations on classification `unbalanced`,
+classification `balanced` and detection:
 
 ```bash
 python experiments/benchmark/src/run_benchmark.py \
@@ -115,7 +115,7 @@ uncertainties are rounded to two decimal places from the full-precision CSV.
 
 | Task | Hugging Face dataset | Configuration | Metric |
 |---|---|---|---|
-| Classification | `dolphinteam/OpenWhistle-Classification-Finetuning` | `all` (10 classes), `balanced` (6) | Macro-F1 |
+| Classification | `dolphinteam/OpenWhistle-Classification-Finetuning` | `unbalanced` (10 classes), `balanced` (6) | Macro-F1 |
 | Detection | `dolphinteam/OpenWhistle-Detection-Finetuning` | `default` (7 labels) | Macro-averaged AP |
 
 The protocol uses **batch size 1, FP32, seed 42 and 1,000 bootstrap resamples**.
@@ -151,7 +151,9 @@ The input counts are defined in `src/benchmark_config.py`.
 | AVES-bio (continual) | `dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz`, three 16 kHz band views |
 
 Model and dataset snapshots are pinned in
-[benchmark_revisions.py](src/benchmark_revisions.py). Native AVES artifact
+[benchmark_revisions.py](src/benchmark_revisions.py). The published scores were
+computed when the `unbalanced` configuration was named `all`; the pinned
+revision contains byte-identical classification files. Native AVES artifact
 paths, revisions and SHA-256 hashes are defined in
 [aves_models.py](src/aves_models.py). wav2vec 2.0 uses the native Fairseq checkpoint
 at 400,000 updates. Its training recipe is documented in

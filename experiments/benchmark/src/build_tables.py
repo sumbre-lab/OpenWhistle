@@ -189,7 +189,7 @@ def build(run_dir, output_dir=None):
     )
     classification_chances = {}
     overview = [
-        "| Method | Pretraining | Macro-F1 all | Macro-F1 balanced | Detection mAP |",
+        "| Method | Pretraining | Macro-F1 unbalanced | Macro-F1 balanced | Detection mAP |",
         "|---|---|---:|---:|---:|",
     ]
     for model in models:
@@ -261,7 +261,7 @@ def build(run_dir, output_dir=None):
             latex.append(
                 f"    {label} & {pretraining} & {score(classification, latex=True, bold=best_classification)} & {score(detection, latex=True, bold=best_detection)} \\\\"
             )
-        configuration = "macro-F1" if config == "all" else f"{config}, macro-F1"
+        configuration = "macro-F1" if config == "unbalanced" else f"{config}, macro-F1"
         description = (
             f"Performance on whistle-type classification ({configuration}) and whistle-type detection (mAP). "
             "Models are grouped by representation and pretraining strategy. All use linear probing with "
@@ -288,7 +288,7 @@ def build(run_dir, output_dir=None):
                 + r"$^{\dagger}$Continual pretraining at 16\,kHz with multi-band encoding; "
                 r"$^{\ddagger}$trained natively at 44.1\,kHz (Sec.~\ref{app:pretraining}).}",
                 r"  \label{tab:results"
-                + ("" if config == "all" else "_" + config)
+                + ("" if config == "unbalanced" else "_" + config)
                 + "}",
                 r"\end{table}",
                 "",

@@ -83,12 +83,12 @@ class PretrainingBackboneTests(unittest.TestCase):
                 "--dataset_name",
                 "classification",
                 "--dataset_config",
-                "all",
+                "unbalanced",
             ],
         ):
             args = train.get_args()
         self.assertEqual(args.model, "aves_hf")
-        self.assertEqual(args.dataset_config, "all")
+        self.assertEqual(args.dataset_config, "unbalanced")
         self.assertEqual(args.hf_local_dir, Path("/tmp/native-aves-export"))
 
     def test_native_export_uses_versioned_files_without_modifying_download(self):

@@ -50,7 +50,6 @@ class BenchmarkProtocolTests(unittest.TestCase):
         for path in benchmark.rglob("*"):
             if "__pycache__" in path.parts:
                 continue
-            self.assertNotIn("unbalanced", path.name.lower())
             self.assertNotIn(path.suffix, {".npz", ".log", ".safetensors", ".pt"})
 
     def test_dependency_change_invalidates_cached_embeddings_automatically(self):
@@ -95,7 +94,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
             (result_model_id(model), task, config)
             for model in BENCHMARK_MODELS
             for task, config in (
-                ("classification", "all"),
+                ("classification", "unbalanced"),
                 ("classification", "balanced"),
                 ("detection", "default"),
             )
@@ -111,7 +110,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
         expected_files = {"results.csv", "tables/benchmark_overview.md"}
         expected_files.update(
             f"tables/benchmark_{config}.{extension}"
-            for config in ("all", "balanced")
+            for config in ("unbalanced", "balanced")
             for extension in ("md", "tex", "pdf")
         )
         self.assertEqual(
@@ -198,7 +197,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
             paths = []
             for split in ("train", "validation", "test"):
                 path = train_lr_splits.embedding_cache_path(
-                    cache, cache_key, "classification", "all", split
+                    cache, cache_key, "classification", "unbalanced", split
                 )
                 path.parent.mkdir(parents=True, exist_ok=True)
                 labels = np.array([0, 1] * 10)
@@ -217,7 +216,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
                 "--dataset_name",
                 "classification",
                 "--dataset_config",
-                "all",
+                "unbalanced",
                 "--strict_embedding_batches",
                 "--embedding_batch_size",
                 "64",
@@ -263,13 +262,13 @@ class BenchmarkProtocolTests(unittest.TestCase):
                 self.assertEqual(row["seed"], "42")
                 with np.load(
                     root
-                    / "predictions/dolphinteam__AVES-bio-OpenWhistle-100pct-44kHz/classification/all.npz"
+                    / "predictions/dolphinteam__AVES-bio-OpenWhistle-100pct-44kHz/classification/unbalanced.npz"
                 ) as data:
                     np.testing.assert_array_equal(data["y"], labels)
                     np.testing.assert_array_equal(data["predictions"], labels)
                 for split in ("train", "validation", "test"):
                     self.assertTrue(
-                        (root / "labels/classification/all" / f"{split}.npz").is_file()
+                        (root / "labels/classification/unbalanced" / f"{split}.npz").is_file()
                     )
                 # A partial cache must still use the actual model to extract
                 # the missing split, rather than silently omitting examples.
@@ -303,7 +302,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
                 self.assertNotIn("--model dolph2vec", command)
                 self.assertNotIn("--hf_local_dir", command)
                 self.assertNotIn("--hf_local_files_only", command)
-            self.assertEqual(sum("--dataset_config all" in c for c in commands), 9)
+            self.assertEqual(sum("--dataset_config unbalanced" in c for c in commands), 9)
             self.assertEqual(sum("--dataset_config balanced" in c for c in commands), 9)
             self.assertEqual(sum("--dataset_name detection" in c for c in commands), 9)
 
@@ -314,10 +313,10 @@ class BenchmarkProtocolTests(unittest.TestCase):
         )
         for model in BENCHMARK_MODELS:
             with self.subTest(model=model["key"]):
-                first = make_command(args, model, "classification", "all")
+                first = make_command(args, model, "classification", "unbalanced")
                 args.output_dir = Path("/tmp/second-run")
                 args.embedding_cache_dir = Path("/tmp/second-cache")
-                second = make_command(args, model, "classification", "all")
+                second = make_command(args, model, "classification", "unbalanced")
                 args.output_dir = Path("/tmp/first-run")
                 args.embedding_cache_dir = Path("/tmp/first-cache")
                 expected = [
@@ -414,7 +413,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
             rows = []
             for index, model in enumerate(BENCHMARK_MODELS):
                 for task, config in [
-                    ("classification", c) for c in ("all", "balanced")
+                    ("classification", c) for c in ("unbalanced", "balanced")
                 ] + [("detection", "default")]:
                     rows.append(
                         dict(
@@ -441,7 +440,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
                     writer.writerows(rows)
 
             write_rows()
-            for task, config in [("classification", c) for c in ("all", "balanced")] + [
+            for task, config in [("classification", c) for c in ("unbalanced", "balanced")] + [
                 ("detection", "default")
             ]:
                 path = (
@@ -461,7 +460,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
                         else np.array([[0, 1], [0, 0], [1, 0]]),
                     )
             build(root)
-            latex = (root / "tables/benchmark_all.tex").read_text()
+            latex = (root / "tables/benchmark_unbalanced.tex").read_text()
             self.assertIn(r"\label{tab:results}", latex)
             self.assertIn(r"\mathbf{58.12\pm2.00}", latex)
             self.assertIn("10,000 bootstrap resamples", latex)
@@ -469,7 +468,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
             self.assertNotIn("RNG seed", latex)
             statistics = split_statistics(root, manifest)
             self.assertEqual(
-                statistics["classification"]["all"]["test_class_counts"], [2, 1]
+                statistics["classification"]["unbalanced"]["test_class_counts"], [2, 1]
             )
             self.assertEqual(statistics["detection"]["default"]["test_examples"], 3)
             self.assertIn("50.00", latex)
@@ -507,7 +506,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
                 cache / "spectral_features__strict_batch1_fp32"
             )
             build(root)
-            regenerated_latex = (root / "tables/benchmark_all.tex").read_text()
+            regenerated_latex = (root / "tables/benchmark_unbalanced.tex").read_text()
             self.assertEqual(regenerated_latex, latex)
 
             # A replacement checkpoint must be selected from this run's manifest,
@@ -531,7 +530,7 @@ class BenchmarkProtocolTests(unittest.TestCase):
             build(root)
             self.assertIn(
                 r"\mathbf{91.00\pm2.00}",
-                (root / "tables/benchmark_all.tex").read_text(),
+                (root / "tables/benchmark_unbalanced.tex").read_text(),
             )
             rows[3 * model_index]["model_id"] = BENCHMARK_MODELS[model_index][
                 "model_id"

@@ -28,7 +28,7 @@ class BenchmarkIntegrationTests(unittest.TestCase):
                 self.subTest(loader=loader.__name__),
                 patch.object(hf_datasets, "load_dataset") as load,
             ):
-                with self.assertRaisesRegex(ValueError, "only all and balanced"):
+                with self.assertRaisesRegex(ValueError, "only unbalanced and balanced"):
                     loader(config_name="unsupported")
                 load.assert_not_called()
 

@@ -12,7 +12,7 @@ from benchmark_models import BENCHMARK_MODELS
 BENCHMARK_DIR = Path(__file__).resolve().parents[1]
 PUBLISHED_RESULTS_DIR = BENCHMARK_DIR / "results"
 RUNS_DIR = BENCHMARK_DIR.parents[1] / "runs" / "benchmark"
-CLASSIFICATION_CONFIGS = ("all", "balanced")
+CLASSIFICATION_CONFIGS = ("unbalanced", "balanced")
 EVALUATIONS = tuple(("classification", config) for config in CLASSIFICATION_CONFIGS) + (
     ("detection", "default"),
 )
@@ -30,7 +30,7 @@ EVALUATION_SETTINGS = dict(
 # Fixed official split counts, used only to calculate the table's chance baselines.
 PUBLISHED_SPLIT_STATISTICS = {
     "classification": {
-        "all": {
+        "unbalanced": {
             "train_class_counts": [31, 19, 460, 235, 2054, 365, 1567, 622, 57, 438],
             "test_class_counts": [7, 4, 99, 50, 440, 78, 336, 133, 12, 94],
         },

@@ -30,7 +30,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=[model[0] for model in MODELS], required=True)
     parser.add_argument("--dataset_name", choices=("classification", "detection"), required=True)
-    parser.add_argument("--dataset_config", choices=("all", "balanced", "default"))
+    parser.add_argument("--dataset_config", choices=("unbalanced", "balanced", "default"))
     parser.add_argument("--output_dir", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=42)
     for name in ("epochs", "patience", "batch_size", "eval_batch_size",
@@ -47,9 +47,9 @@ def parse_args():
                         help="Optional per-job test bootstrap; the campaign aggregates it by default.")
     add_refit_argument(parser)
     args = parser.parse_args()
-    args.dataset_config = args.dataset_config or ("all" if args.dataset_name == "classification" else "default")
+    args.dataset_config = args.dataset_config or ("unbalanced" if args.dataset_name == "classification" else "default")
     if (args.dataset_name, args.dataset_config) not in TASK_DATASETS.values():
-        parser.error("Use all/balanced for classification or default for detection.")
+        parser.error("Use unbalanced/balanced for classification or default for detection.")
     if args.model not in HF_MODELS and (args.feature_mode is not None or args.sample_rate is not None):
         parser.error("--feature_mode and --sample_rate apply only to Hugging Face audio encoders.")
     task = "balanced" if args.dataset_config == "balanced" else args.dataset_name

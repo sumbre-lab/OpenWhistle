@@ -3,10 +3,10 @@
   "backbone": "aves_scratch",
   "model_id": "dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct",
   "model_revision": "961e814923251f346f818440fb2e7883cd1331b1",
-  "dataset_config": "all",
+  "dataset_config": "unbalanced",
   "training_args": {
     "backbone": "aves_scratch",
-    "dataset_config": "all",
+    "dataset_config": "unbalanced",
     "seed": 42,
     "epochs": 50,
     "patience": 15,

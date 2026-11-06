@@ -1,4 +1,4 @@
-| Method | Pretraining | Macro-F1 all | Macro-F1 balanced | Detection mAP |
+| Method | Pretraining | Macro-F1 unbalanced | Macro-F1 balanced | Detection mAP |
 |---|---|---:|---:|---:|
 | Chance level | Label permutation / random ranking | 10.00 | 16.67 | 7.84 |
 | Spectral features | -- | 14.15 ± 0.67 | 33.52 ± 2.06 | 26.34 ± 1.17 |

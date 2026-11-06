@@ -11,6 +11,9 @@ MODEL_REVISIONS = {
 }
 
 DATASET_REVISIONS = {
-    "dolphinteam/OpenWhistle-Classification-Finetuning": "2b7806e3c5913c459c40b824ab7f944d494b3993",
+    # The published scores were computed at 2b7806e3c5913c459c40b824ab7f944d494b3993,
+    # where the unbalanced config was named "all". Its parquet files and those of
+    # the balanced config are byte-identical (same SHA-256) at this revision.
+    "dolphinteam/OpenWhistle-Classification-Finetuning": "1026daf811f1f134d98a977e0cdd1e1129692497",
     "dolphinteam/OpenWhistle-Detection-Finetuning": "c2e89807b51142e106b76d486f4cf620ec63c1fb",
 }

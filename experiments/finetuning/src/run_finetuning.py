@@ -1,4 +1,4 @@
-"""Fine-tune six encoders on all/balanced classification and detection."""
+"""Fine-tune six encoders on unbalanced/balanced classification and detection."""
 import argparse
 import csv
 from datetime import datetime, timezone
@@ -40,7 +40,7 @@ def validate_report_details(report, task):
     """Check split labels, validation selection, refit history and classification counts."""
     metric = "map" if task == "detection" else "macro_f1"
     expected_labels = (DETECTION_ONE_HOT_COLUMNS if task == "detection" else
-                       CLASSIFICATION_LABEL_NAMES["balanced" if task == "balanced" else "all"])
+                       CLASSIFICATION_LABEL_NAMES["balanced" if task == "balanced" else "unbalanced"])
     if report.get("label_names") != list(expected_labels):
         raise ValueError("Report label order differs from the pinned dataset.")
     history = report.get("history", [])
@@ -76,7 +76,7 @@ def load_result(path, model, task, seed, *, require_checkpoint=True, require_pre
     with path.open() as handle:
         result = json.load(handle)
     metric = "map" if task == "detection" else "macro_f1"
-    expected_config = {"classification": "all", "balanced": "balanced", "detection": "default"}[task]
+    expected_config = {"classification": "unbalanced", "balanced": "balanced", "detection": "default"}[task]
     if (result.get("protocol") != "supervised_end_to_end_finetuning"
             or result.get("model_id") != model_id or result.get("seed") != seed
             or result.get("dataset_config") != expected_config):

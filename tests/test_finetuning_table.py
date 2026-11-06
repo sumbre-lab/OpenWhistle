@@ -41,7 +41,7 @@ class FinetuningTableTests(unittest.TestCase):
                     self.assertEqual(args.model_id, model[3])
                     for name, value in config.recipe(model[0], task).items():
                         self.assertEqual(getattr(args, name), value)
-            for dataset_name, dataset_config in (("classification", "default"), ("detection", "all")):
+            for dataset_name, dataset_config in (("classification", "default"), ("detection", "unbalanced")):
                 command = ["finetune", "--model", "wav2vec2", "--dataset_name", dataset_name,
                            "--dataset_config", dataset_config, "--output_dir", str(output)]
                 with patch.object(sys, "argv", command), redirect_stderr(io.StringIO()), \
@@ -157,8 +157,8 @@ class FinetuningTableTests(unittest.TestCase):
             self.assertTrue(all("/balanced/seed_42" in command for command in balanced))
             configs = [command.split("--dataset_config ")[1].split()[0]
                        if "--dataset_config " in command else "default" for command in commands]
-            self.assertEqual(configs, ["all", "balanced", "default"] * 6)
-            wav2vec2_class = next(c for c in commands if "--model wav2vec2 " in c and "--dataset_config all" in c)
+            self.assertEqual(configs, ["unbalanced", "balanced", "default"] * 6)
+            wav2vec2_class = next(c for c in commands if "--model wav2vec2 " in c and "--dataset_config unbalanced" in c)
             self.assertEqual(config.MODEL_REVISIONS[config.MODEL_ID],
                              "b5f156048fc4da1d8d8b7345b61ebef1257b365c")
             self.assertIn("/wav2vec2/classification/seed_42", wav2vec2_class)
@@ -190,7 +190,7 @@ class FinetuningTableTests(unittest.TestCase):
                 score = score_predictions(metric_task, y_true, y_pred)
                 record = dict(protocol="supervised_end_to_end_finetuning", model_id=model_id,
                               model_revision=config.MODEL_REVISIONS.get(model_id), seed=42,
-                              dataset_config={"classification": "all", "balanced": "balanced",
+                              dataset_config={"classification": "unbalanced", "balanced": "balanced",
                                               "detection": "default"}[task],
                               best_epoch=1, test={"map" if task == "detection" else "macro_f1": score},
                               training_args={**config.recipe(key, task), "seed": 42,
@@ -205,7 +205,7 @@ class FinetuningTableTests(unittest.TestCase):
                 record[f"validation_{metric}"] = score
                 record["history"] = [dict(epoch=1, train_loss=0.1, validation={metric: score})]
                 record["label_names"] = list(DETECTION_ONE_HOT_COLUMNS if task == "detection" else
-                                              CLASSIFICATION_LABEL_NAMES["balanced" if task == "balanced" else "all"])
+                                              CLASSIFICATION_LABEL_NAMES["balanced" if task == "balanced" else "unbalanced"])
                 if task != "detection":
                     cm = np.zeros((num_labels, num_labels), dtype=int)
                     np.add.at(cm, (y_true, y_pred), 1)
@@ -230,7 +230,7 @@ class FinetuningTableTests(unittest.TestCase):
                 score = score_predictions("classification", data["y_true"], data["y_pred"])
                 samples = bootstrap_metric_scores("classification", data["y_true"], data["y_pred"], 30, 42)
             wav2vec2 = next(r for r in rows if r["model_id"] == config.MODEL_ID
-                            and r["dataset_name"] == "classification" and r["dataset_config"] == "all")
+                            and r["dataset_name"] == "classification" and r["dataset_config"] == "unbalanced")
             self.assertEqual(float(wav2vec2["test_mean"]), score)
             self.assertEqual(float(wav2vec2["test_std"]), np.std(samples, ddof=1))
             with np.load(output / "wav2vec2/classification/seed_42/bootstrap_scores.npz") as data:
