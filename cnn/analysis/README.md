@@ -14,8 +14,8 @@ The script computes SNR directly from the audio of the datasets in the
 - **Pretraining**, left: `dolphinteam/OpenWhistle-Pretraining`, `default` config,
   train and validation splits.
 - **Classification (all)**, right:
-  `dolphinteam/OpenWhistle-Classification-Finetuning`, `all` config,
-  train, validation and test splits (all ten classes).
+  `dolphinteam/OpenWhistle-Classification-Finetuning`, `unbalanced` config
+  (formerly `all`), train, validation and test splits (all ten classes).
 
 Each published audio row contributes one SNR estimate. The default processes all
 rows, streamed with a bounded queue; it does not load the full corpus into RAM.

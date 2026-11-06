@@ -59,8 +59,10 @@ are not overwritten without `--overwrite`.
 
 The full corpus contains 28,410 training and 3,370 validation examples; Fairseq
 excludes two training examples shorter than five seconds. For a small trial,
-use `--dataset_config review-sample --max_train 8 --max_validation 4` with
-separate audio and manifest directories.
+use `--dataset_config review-sample --revision e0fbe77305944272ce24446293fd98a1b8c6f04d
+--max_train 8 --max_validation 4` with separate audio and manifest directories.
+The `review-sample` config was removed from the dataset's main branch and is
+only available at this pinned revision.
 
 ## Pretraining
 

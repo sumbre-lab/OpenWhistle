@@ -1,6 +1,6 @@
 """Render ``fig_classification_overview`` from the HF classification dataset plus CSV sidecars.
 
-Loads ``dolphinteam/OpenWhistle-Classification-Finetuning`` (config ``all``) by default.
+Loads ``dolphinteam/OpenWhistle-Classification-Finetuning`` (config ``unbalanced``) by default.
 Whistle-sequence durations for panel B use ``data/audio_segment_durations.csv``
 when available; otherwise they are read from the HF pretraining dataset.
 
@@ -57,7 +57,7 @@ def _sequence_durations_s(*, data_dir: Path) -> np.ndarray | None:
 def main() -> None:
     ap = argparse.ArgumentParser(description="Render fig_classification_overview.")
     ap.add_argument("--hf-id", default=CLASSIFICATION_HF_ID, help="Hugging Face classification dataset id.")
-    ap.add_argument("--config", default="all", help="Dataset config name (e.g. all).")
+    ap.add_argument("--config", default="unbalanced", help="Dataset config name (e.g. unbalanced).")
     ap.add_argument(
         "--snr-dir", type=Path, default=_REPO / "cnn/runs/snr",
         help="Completed full-corpus plot_snr.py outputs, including snr_protocol.json.",

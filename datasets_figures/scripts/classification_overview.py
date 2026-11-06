@@ -128,7 +128,7 @@ def load_snr_comparison(snr_dir: Path) -> tuple[np.ndarray, np.ndarray, dict]:
         raise ValueError("Panel F requires a full-corpus SNR run, not a diagnostic subset.")
     expected = {
         "pretraining": ("dolphinteam/OpenWhistle-Pretraining", "default", ["train", "validation"]),
-        "classification_all": ("dolphinteam/OpenWhistle-Classification-Finetuning", "all",
+        "classification_all": ("dolphinteam/OpenWhistle-Classification-Finetuning", "unbalanced",
                                ["train", "validation", "test"]),
     }
     arrays = []

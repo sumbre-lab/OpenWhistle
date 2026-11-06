@@ -57,7 +57,7 @@ with the SNR protocol, dataset revisions, valid counts and input CSV hashes.
 | `cnn/runs/reports/test_confusion_matrix.csv` | Dataset overview D: held-out CNN evaluation |
 | `data/inter_detected_whistle_intervals.csv` | Classification overview A: gaps between detected whistle sequences |
 | `data/audio_segment_durations.csv` | Classification overview B: pretraining sequence durations |
-| HF classification dataset, `all` config, all three splits | Classification overview C–E: dates, classes and durations |
+| HF classification dataset, `unbalanced` config, all three splits | Classification overview C–E: dates, classes and durations |
 | `cnn/runs/snr/` | Classification overview F: full-corpus SNR measurements and protocol |
 
 The recording-hours and interval CSVs are supplied statistics from the full
@@ -109,8 +109,8 @@ and filenames are configured through the environment variables documented in
 - **A–B)** Temporal structure of dolphin vocalizations: distributions of inter-whistle intervals (A) and whistle sequence durations (B).
 - **C–E)** Properties of the expert-annotated subset: temporal coverage (C), class distribution (D), and whistle duration (E).
 - **F)** Estimated signal-to-noise ratio (SNR) of the published pretraining
-  sequences (left, 31,780 rows) and the classification dataset, `all` config
-  across train, validation and test (right, 8,353 valid rows). Each audio row
+  sequences (left, 31,780 rows) and the classification dataset, `unbalanced`
+  config (formerly `all`) across train, validation and test (right, 8,353 valid rows). Each audio row
   contributes one spectrogram-ridge estimate using noise-subtracted flanking
   bands. One classification clip is too short for estimation and is excluded.
   Dashed lines within the violins indicate quartiles. The displayed range is

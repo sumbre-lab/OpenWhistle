@@ -13,7 +13,7 @@ class FigureSNRInputTests(unittest.TestCase):
         protocol = {"limit_per_dataset": 0, "datasets": {}}
         groups = {
             "pretraining": ("dolphinteam/OpenWhistle-Pretraining", "default", ["train", "validation"]),
-            "classification_all": ("dolphinteam/OpenWhistle-Classification-Finetuning", "all",
+            "classification_all": ("dolphinteam/OpenWhistle-Classification-Finetuning", "unbalanced",
                                    ["train", "validation", "test"]),
         }
         for group, (repo, config, splits) in groups.items():

@@ -22,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 COLLECTION = 'https://huggingface.co/collections/dolphinteam/neurips26-openwhistle'
 SOURCES = {
     'pretraining': ('dolphinteam/OpenWhistle-Pretraining', 'default', ('train', 'validation')),
-    'classification_all': ('dolphinteam/OpenWhistle-Classification-Finetuning', 'all', ('train', 'validation', 'test')),
+    'classification_all': ('dolphinteam/OpenWhistle-Classification-Finetuning', 'unbalanced', ('train', 'validation', 'test')),
 }
 FIELDS = ('split', 'index', 'sampling_rate', 'duration_s', 'snr_db', 'status', 'n_stft_frames_used')
 
