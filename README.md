@@ -14,7 +14,7 @@
 
 </div>
 
-OpenWhistle is the largest publicly available dataset of bottlenose dolphin vocalizations: approximately **180,000 whistles (114 hours)** recorded over five years from a stable pod of five individuals in a semi-natural environment. It includes **8,354 expert-annotated whistles**, reproducible detection and classification benchmarks, the full processing pipeline, and a Wav2Vec2.0 model pretrained specifically on dolphin acoustics.
+OpenWhistle is the largest publicly available dataset of bottlenose dolphin vocalizations: approximately **180,000 whistles (114 hours)** recorded over five years from a stable pod of five individuals in a semi-natural environment. It includes **8,354 expert-annotated whistles**, reproducible detection and classification benchmarks, the full processing pipeline, and a wav2vec 2.0 model pretrained specifically on dolphin acoustics.
 
 ```bibtex
 @misc{mustun2026openwhistle,
@@ -39,7 +39,7 @@ OpenWhistle is the largest publicly available dataset of bottlenose dolphin voca
   <img src="Annotation_Pipeline.png" alt="OpenWhistle annotation and processing pipeline" width="900">
 </p>
 
-This repository provides the code to access the data and reproduce the paper experiments. It includes the multi-model benchmark, Wav2Vec2.0 pretraining, whistle presence detection and segmentation, and scripts used to generate the dataset figures in the manuscript.
+This repository provides the code to access the data and reproduce the paper experiments. It includes the multi-model benchmark, wav2vec 2.0 pretraining, whistle presence detection and segmentation, and scripts used to generate the dataset figures in the manuscript.
 
 ## Hugging Face datasets
 
@@ -56,45 +56,135 @@ The OpenWhistle datasets are released under **CC BY 4.0**.
 
 | Model | Task | Hugging Face link |
 |-------|------|-------------------|
-| **OpenWhistle Wav2Vec2.0** | Self-supervised acoustic representation learning and downstream feature extraction | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
+| **OpenWhistle wav2vec 2.0 (100%)** | Self-supervised acoustic representations used in the manuscript benchmark; final 400,000-update checkpoint | [dolphinteam/OpenWhistle-Wav2Vec2.0](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0) |
+| **OpenWhistle wav2vec 2.0 (10%)** | Pretraining data-size ablation; final 40,000-update checkpoint | [dolphinteam/OpenWhistle-Wav2Vec2.0-10pct](https://huggingface.co/dolphinteam/OpenWhistle-Wav2Vec2.0-10pct) |
 | **OpenWhistle CNN VGG16** | Binary whistle/noise classification from spectrogram windows | [dolphinteam/OpenWhistle-CNN-VGG16](https://huggingface.co/dolphinteam/OpenWhistle-CNN-VGG16) |
 
 ## Repository layout
 
+Each experiment directory has its own README with installation instructions,
+commands and protocols. The [benchmark README](experiments/benchmark/README.md)
+describes the linear probing evaluation and generated tables.
+
 ```text
 .
-├── cnn/                    # CNN whistle presence detection and segmentation
-├── datasets_figures/       # scripts for the dataset overview figures
+├── cnn/                         # whistle detection, segmentation and inference
+│   ├── utils/
+│   ├── analysis/                # missed-whistle analysis and SNR figure
+│   ├── external/                # WMMSD/DCLDE inference tools
+│   └── learning_curve/          # training-set size experiment and results
+├── datasets_figures/            # dataset overview figures
 ├── experiments/
-│   ├── benchmark/          # frozen-embedding + logistic-regression benchmark
-│   └── pretraining/        # self-supervised pretraining code
+│   ├── pretraining/
+│   │   └── src/                 # data preparation, native training and export
+│   ├── benchmark/
+│   │   ├── src/                 # frozen embeddings and logistic regression
+│   │   └── results/             # published scores and tables
+│   └── finetuning/
+│       ├── src/                 # supervised encoder training and launcher
+│       └── results/             # published reports and results.csv
+├── runs/                       # ignored local experiment outputs
+│   ├── pretraining/            # prepared audio, checkpoints and exports
+│   ├── benchmark/              # probing outputs and embedding caches
+│   └── finetuning/             # training outputs and checkpoints
+├── tests/
 ├── Annotation_Pipeline.png
-├── LICENSE-DATA            # CC BY 4.0 terms for the OpenWhistle datasets
+├── LICENSE                     # MIT, original source code and documentation
+├── LICENSE-DATA                # CC BY 4.0, datasets, model weights, figures and results
 └── README.md
 ```
 
 - [`experiments/benchmark/`](experiments/benchmark/) reproduces the paper benchmark on the classification and detection datasets.
 - [`experiments/pretraining/`](experiments/pretraining/) contains the large-scale self-supervised pretraining material.
+- [`experiments/finetuning/`](experiments/finetuning/) reproduces supervised adaptation of the six neural encoders, with published reports and a summary CSV.
 - [`cnn/`](cnn/) contains the VGG16-based whistle presence detection and segmentation workflow. See the [CNN README](cnn/README.md) for setup, training, and inference.
 - [`datasets_figures/`](datasets_figures/) builds the dataset overview figures used in the manuscript.
 
 ## Running the benchmark
 
-The benchmark trains logistic-regression heads on frozen embeddings for each model family, inverse regularization value, cross-validation split, and task (classification or detection). The sweep includes:
+The linear probing benchmark evaluates nine frozen representations with logistic
+regression on fixed classification and detection splits. C is selected on
+validation, and the final probe is fitted on train + validation. The published
+protocol uses **batch size 1, FP32, and 1,000 test bootstrap resamples**. The
+wav2vec 2.0 checkpoint is `dolphinteam/OpenWhistle-Wav2Vec2.0`.
 
-`mfcc`, `spectrogram`, `spectral_features`, `dolph2vec`, `biolingual`, `aves_bio`, `aves_core`
-
-Install Python 3.12 and the benchmark dependencies:
+Install the benchmark dependencies in a Python 3.13 environment, then run from
+the repository root:
 
 ```bash
-cd experiments/benchmark
-pip install -r requirements.txt
-./run_all.sh
+python -m pip install -r experiments/benchmark/requirements.txt
+python experiments/benchmark/src/run_benchmark.py \
+  --output_dir runs/benchmark/reproduction
 ```
 
-If you need a specific CUDA or CPU PyTorch build, install `torch` and `torchaudio` from the [PyTorch installation guide](https://pytorch.org/get-started/locally/) before installing the requirements.
+To evaluate only wav2vec 2.0 on balanced classification:
 
-`run_all.sh` runs the classification and detection benchmarks, then generates micro-averaged precision–recall curves. Outputs are written under `experiments/benchmark/results/`. For CNN-specific training and evaluation, use [`cnn/`](cnn/) instead of the benchmark driver.
+```bash
+python experiments/benchmark/src/train_lr_splits.py \
+  --model hf \
+  --hf_model_id dolphinteam/OpenWhistle-Wav2Vec2.0 \
+  --hf_sample_rate 44100 \
+  --dataset_name classification \
+  --dataset_config balanced
+```
+
+The single-run defaults use batch size 1, FP32, feature standardization, seed 42
+and 1,000 bootstrap resamples. Its CSV is saved to
+`runs/benchmark/single-model/results.csv`.
+
+Install compatible `torch` and `torchaudio` builds for your CPU or CUDA setup.
+The [benchmark README](experiments/benchmark/README.md) documents the exact
+protocol, pinned model/dataset revisions, resume options and table generation.
+Use `--dry_run` to inspect the 27 evaluation commands and one table generation
+command without downloading or writing files.
+
+The [published main table](experiments/benchmark/results/tables/benchmark_unbalanced.pdf),
+[full results](experiments/benchmark/results/results.csv), and
+[evaluation protocol](experiments/benchmark/README.md#evaluation-protocol) are
+included in the repository. Prediction and label arrays remain in local runs.
+New evaluations and embedding caches go under
+ignored `runs/benchmark/` at the repository root. For the binary whistle/noise
+CNN, use [`cnn/`](cnn/) instead of the representation benchmark.
+
+## Supervised fine-tuning
+
+The fine-tuning comparison adapts the six neural encoders end-to-end on
+classification `unbalanced`, classification `balanced`, and seven-label detection.
+Training losses have no class weighting. Epochs are selected on validation;
+each model is then reinitialized and refitted on train + validation for that
+fixed duration. Evaluation uses batch size 1, FP32 and 1,000 test bootstrap
+resamples with one training seed.
+
+```bash
+python -m pip install -r experiments/finetuning/requirements.txt
+python experiments/finetuning/src/run_finetuning.py \
+  --output_dir runs/finetuning/reproduction
+```
+
+The [published fine-tuning results](experiments/finetuning/results/results.csv)
+and detailed evaluation reports are included.
+The [fine-tuning README](experiments/finetuning/README.md)
+documents the pinned initializations, recipes, resume behavior and verification
+without encoder weights or audio. Prediction and bootstrap arrays are omitted
+from the retained fine-tuning release; its metrics and uncertainties cannot be
+recomputed without generating these arrays again.
+
+## Additional experiments
+
+The [pretraining directory](experiments/pretraining/README.md) documents the
+self-supervised training recipes and checkpoint provenance. The
+[CNN learning-curve README](cnn/learning_curve/README.md) describes the supervised
+training-set size experiment. CNN outputs are generated locally in `cnn/runs/`;
+dataset figures are written to `datasets_figures/output/`.
+
+## License
+
+The original OpenWhistle source code and its documentation are licensed under
+the [MIT License](LICENSE). The OpenWhistle datasets, the published OpenWhistle
+wav2vec 2.0 weights, and the figures and result files in this repository are
+licensed under [CC BY 4.0](LICENSE-DATA). Third-party code, dependencies and
+other pretrained checkpoints retain their own licenses; see their respective
+notices and model cards.
 
 ## Authors
 

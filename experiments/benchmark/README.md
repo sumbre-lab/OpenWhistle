@@ -1,92 +1,167 @@
-# OpenWhistle benchmark
+# OpenWhistle: Linear Probing
 
-Frozen **audio embeddings** followed by **linear probes** (logistic regression) on the expert-annotated Hugging Face datasets. This folder reproduces the paper’s whistle type **classification** and **detection** benchmark numbers.
+Code and results for evaluating acoustic representations on OpenWhistle
+whistle-type classification and multilabel detection. We compare nine
+representations, from classical acoustic features to pretrained audio encoders,
+by fitting logistic regression probes while keeping the representations fixed.
 
 <p align="center">
-  <img src="fig_tasks.png" alt="Classification vs detection tasks" width="720">
+  <img src="fig_tasks.png" alt="Classification and detection tasks" width="720">
 </p>
 
-## Tasks (what each benchmark measures)
+[Results](#results) · [Installation](#installation) · [Evaluation](#evaluation) ·
+[Protocol](#evaluation-protocol) · [Models](#representations)
 
-### Classification (`--dataset_name classification`)
+## Results
 
-- **Goal:** assign each short clip to a **single whistle type** (multiclass).
-- **Data:** [OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning) (default config `balanced`), with **train / validation / test** splits.
-- **Head:** one multinomial **logistic regression** on the embedding.
-- **Validation:** among inverse-regularization strengths **C ∈ {0.1, 1, 10}**, keep the **C** that maximizes **validation accuracy**.
-- **Test:** refit on **train ∪ validation** with the chosen **C**; report **test accuracy** (mean over several RNG seeds, with bootstrap dispersion; see `train_lr_splits.py`).
+Classification is evaluated with **macro-F1** and detection with **mAP**.
+Scores are percentages, reported as the full-test metric ± the standard
+deviation over 1,000 bootstrap resamples. Best scores in each column are bold.
 
-### Detection (`--dataset_name detection`)
+| Representation | Classification (`unbalanced`) | Classification (`balanced`) | Detection |
+|---|---:|---:|---:|
+| Spectral features | 14.15 ± 0.67 | 33.52 ± 2.06 | 26.34 ± 1.17 |
+| MFCCs | 21.22 ± 0.99 | 44.20 ± 2.20 | 33.91 ± 1.77 |
+| Mean spectrogram | 32.05 ± 1.30 | 54.95 ± 2.15 | 47.80 ± 2.10 |
+| AVES-core | 51.60 ± 2.28 | 67.60 ± 2.11 | 57.39 ± 2.07 |
+| BioLingual | 54.03 ± 2.72 | 70.98 ± 2.12 | 66.52 ± 2.23 |
+| AVES-bio | 54.45 ± 2.58 | 75.13 ± 1.96 | 65.01 ± 2.29 |
+| AVES-bio (from scratch) | 60.97 ± 3.76 | 79.89 ± 1.81 | 76.17 ± 1.97 |
+| wav2vec 2.0 | 61.95 ± 2.79 | **81.40 ± 1.78** | **79.59 ± 1.83** |
+| AVES-bio (continual) | **64.75 ± 2.64** | 75.24 ± 2.01 | 73.87 ± 2.06 |
 
-- **Goal:** for each analysis window, predict **which whistle types are present** (multi-label, one binary sub-task per type).
-- **Data:** [OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning](https://huggingface.co/datasets/OpenWhistleNeurIPS26/OpenWhistle-Detection-Finetuning) (`default` config), loaded from this repo’s `data/` tree (see `src/hf_datasets.py`). Splits: **train / validation / test**.
-- **Label vector:** eight binary dimensions (signature whistles **SW_***, one non-signature bucket **NSW_1**), as in `DETECTION_ONE_HOT_COLUMNS` in `hf_datasets.py`.
-- **Head:** **MultiOutputClassifier** over logistic regressions (one classifier per label).
-- **Validation:** choose **C** that maximizes **validation mean average precision (mAP)** over labels (probability-based; see `metrics.py`).
-- **Test:** same refit protocol as classification; primary score is **test mAP** (again with seed and bootstrap summaries in `train_lr_splits.py`).
-
-Shared preprocessing: embeddings are optionally **standardized** (`StandardScaler` fit on the training portion used for each stage) before logistic regression, unless `--no_normalize_data` is passed.
-
-## Metrics
-
-| Setting | Primary metric | Notes |
-|--------|----------------|--------|
-| **Classification** | **Accuracy** | Fraction of clips with correct argmax class on the held-out test split. |
-| **Detection** | **Mean average precision (mAP)** | Class-wise average precision from ranked scores, then averaged across the eight binary heads (`MeanAveragePrecision` in `metrics.py`). |
-
-## Embedding backbones (`--model`)
-
-All models map each clip’s waveform to a **fixed vector**; only the linear probe is trained for the benchmark.
-
-| `--model` | Description |
-|-----------|-------------|
-| **`mfcc`** | Time-averaged **MFCC** features (librosa). |
-| **`spectrogram`** | Time-averaged **log-mel spectrogram** (128 mels). |
-| **`spectral_features`** | Concatenated time-averaged **spectral centroid, bandwidth, contrast, rolloff**. |
-| **`dolph2vec`** | **Wav2Vec2**-style pretrained on OpenWhistle corpus. |
-| **`biolingual`** | **CLAP**-style audio embedding (`davidrrobinson/biolingual`), 48 kHz pipeline. |
-| **`aves_core`** | **AVES** “core” checkpoint (44.1 kHz). |
-| **`aves_bio`** | **AVES** “bio” variant. |
+- [Main table: PDF](results/tables/benchmark_unbalanced.pdf) · [LaTeX](results/tables/benchmark_unbalanced.tex)
+- [Balanced classification: PDF](results/tables/benchmark_balanced.pdf) · [LaTeX](results/tables/benchmark_balanced.tex)
+- [Overview with all scores and uncertainties](results/tables/benchmark_overview.md)
+- [Full-precision CSV](results/results.csv)
 
 ## Installation
 
-Use Python 3.12 and install the benchmark dependencies with pip:
+Use Python 3.13 and install from the repository root:
 
 ```bash
-cd experiments/benchmark
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r experiments/benchmark/requirements.txt
 ```
 
-The requirements include the standard audio/ML stack plus `esp-aves`, which
-provides the `aves` feature extractor used by the AVES benchmark models. If you
-need a specific CUDA or CPU PyTorch wheel, install `torch` and `torchaudio` from
-the matching PyTorch index before installing the requirements.
+Install compatible `torch` and `torchaudio` wheels for your CPU/CUDA setup.
+The reference evaluation used Python 3.13.9, PyTorch `2.12.1+cu130`, TorchAudio
+`2.11.0+cu130` and CUDA 13.0. Other direct dependencies are pinned in
+[requirements.txt](requirements.txt). The runner records the environment of
+each local run and checks it before resuming.
 
-## Run everything (all models × both tasks)
+Audio is decoded with SoundFile; native AVES models use `esp-aves`.
 
-From this directory:
+## Evaluation
+
+Run all commands from the repository root.
+
+### Full benchmark
+
+Evaluate all nine representations on classification `unbalanced`,
+classification `balanced` and detection:
 
 ```bash
-export PYTHONPATH="${PWD}/src"
-./run_all.sh
+python experiments/benchmark/src/run_benchmark.py \
+  --output_dir runs/benchmark/reproduction
 ```
 
-`run_all.sh` loops over every `--model` above and invokes `train_lr_splits.py` for **classification** and **detection** with **C ∈ {0.1, 1.0, 10.0}** (open `run_all.sh` for the exact command sequence).
+This produces 27 evaluations, `results.csv`, predictions, split labels and
+Markdown/LaTeX tables in the chosen run directory. Embeddings are cached under
+`runs/benchmark/embedding_cache/`.
 
-### Single model / single task
+Add `--resume` to continue an interrupted run, or `--dry_run` to print the
+27 evaluation commands and one table command without running them.
+`--embedding_cache_dir` changes the shared cache directory. Without
+`--output_dir`, a new directory is created at
+`runs/benchmark/run-YYYYMMDD-HHMMSS/`. The runner checks run settings and the
+numerical environment before resuming. Local run files are ignored by Git;
+[results/](results/) contains the published scores and tables.
+
+### Single evaluation
+
+Example: wav2vec 2.0 on balanced classification.
 
 ```bash
-cd experiments/benchmark
-export PYTHONPATH="${PWD}/src"
-python src/train_lr_splits.py --model dolph2vec --dataset_name classification --inverse_regs 0.1 1.0 10.0
-python src/train_lr_splits.py --model dolph2vec --dataset_name detection --inverse_regs 0.1 1.0 10.0
+python experiments/benchmark/src/train_lr_splits.py \
+  --model hf \
+  --hf_model_id dolphinteam/OpenWhistle-Wav2Vec2.0 \
+  --hf_sample_rate 44100 \
+  --dataset_name classification \
+  --dataset_config balanced
 ```
 
-Useful flags (see `train_lr_splits.py`): `--seed`, `--num_seeds`, `--num_bootstrap`, `--no_normalize_data`, `--target_sample_rate`.
+Batch size 1, FP32, feature standardization, seed 42 and 1,000 bootstrap
+resamples are already the defaults. Results are saved to
+`runs/benchmark/single-model/results.csv`; `--results_csv` changes that path.
+Add `--embedding_cache_dir runs/benchmark/embedding_cache` to reuse or save
+embeddings. Use `train_lr_splits.py --help` for other representations and options.
 
-## Outputs
+### Regenerate the published tables
 
-- Appended lines under **`results/`**, mainly **`results_classification.txt`** and **`results_detection.txt`**, from `train_lr_splits.py`.
+Regenerate Markdown and LaTeX tables from the published CSV without loading
+audio or models:
 
-For the high-level repository layout, CNN branch, and dataset overview figures, see the [root README](../../README.md) and [`datasets_figures/`](../../datasets_figures/README.md).
+```bash
+python experiments/benchmark/src/build_tables.py \
+  --run_dir experiments/benchmark/results \
+  --output_dir runs/benchmark/paper-tables
+```
+
+Add `--pdf` for `pdflatex`, or `--pdf --tectonic_bin /path/to/tectonic`.
+For a new evaluation, set `--run_dir` to its run directory. Scores and
+uncertainties are rounded to two decimal places from the full-precision CSV.
+
+## Evaluation protocol
+
+| Task | Hugging Face dataset | Configuration | Metric |
+|---|---|---|---|
+| Classification | `dolphinteam/OpenWhistle-Classification-Finetuning` | `unbalanced` (10 classes), `balanced` (6) | Macro-F1 |
+| Detection | `dolphinteam/OpenWhistle-Detection-Finetuning` | `default` (7 labels) | Macro-averaged AP |
+
+The protocol uses **batch size 1, FP32, seed 42 and 1,000 bootstrap resamples**.
+The official train/validation/test splits are fixed. Select C from `{0.1, 1, 10}`
+by validation performance, fitting StandardScaler on train only. Refit the
+scaler and final probe on train + validation. Classification uses multiclass
+logistic regression; detection fits one logistic regression per label. Both use
+`lbfgs`, `max_iter=20000`, default tolerance and no class weighting.
+
+The point estimate is the metric on the full test split. The ± value is the
+sample standard deviation (`ddof=1`) of 1,000 unstratified test-clip resamples
+with replacement, using NumPy `default_rng(42)`. One fitted probe supplies all
+resamples. This measures test-sampling uncertainty, not encoder-training
+variability. Detection uses the released Torch rank-based AP definition,
+including its treatment of tied scores and labels without positives.
+
+Chance macro-F1 is the expectation under a random permutation of test labels
+preserving class counts (`1/K`). Detection chance is the expected finite-test
+mAP under independent continuous random scores: 7.84% for the published split.
+The input counts are defined in `src/benchmark_config.py`.
+
+## Representations
+
+| Representation | Encoder or feature extractor |
+|---|---|
+| Spectral features | Mean spectral centroid, bandwidth, contrast and rolloff |
+| MFCCs | Mean of 13 MFCCs |
+| Mean spectrogram | Mean log-mel spectrogram, 128 mel bins |
+| AVES-core / AVES-bio | Official TorchAudio AVES encoders at 44.1 kHz |
+| BioLingual | `davidrrobinson/biolingual`, native CLAP frontend at 48 kHz |
+| AVES-bio (from scratch) | `dolphinteam/AVES-OpenWhistle-Stage-2-320-100pct`, native 44.1 kHz |
+| wav2vec 2.0 | `dolphinteam/OpenWhistle-Wav2Vec2.0`, native 44.1 kHz |
+| AVES-bio (continual) | `dolphinteam/AVES-bio-OpenWhistle-100pct-44kHz`, three 16 kHz band views |
+
+Model and dataset snapshots are pinned in
+[benchmark_revisions.py](src/benchmark_revisions.py). The published scores were
+computed when the `unbalanced` configuration was named `all`; the pinned
+revision contains byte-identical classification files. Native AVES artifact
+paths, revisions and SHA-256 hashes are defined in
+[aves_models.py](src/aves_models.py). wav2vec 2.0 uses the native Fairseq checkpoint
+at 400,000 updates. Its training recipe is documented in
+[pretraining/](../pretraining/README.md).
+
+Continual AVES uses BTB3: baseband and two frequency-shifted views of the original
+44.1 kHz waveform, encoded at 16 kHz and concatenated into 2,304 features.
+wav2vec 2.0 and AVES pool valid output frames; BioLingual uses native pooling.
+Extraction uses batch size 1 and FP32 with AMP disabled; the CUDA path permits
+TF32. Embedding caches include a fingerprint of extraction code and dependency
+versions to invalidate outdated features automatically.

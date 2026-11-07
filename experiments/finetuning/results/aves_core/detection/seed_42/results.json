@@ -1,0 +1,172 @@
+{
+  "protocol": "supervised_end_to_end_finetuning",
+  "task": "multilabel_detection",
+  "backbone": "aves_core",
+  "model_id": "aves_core",
+  "dataset_config": "default",
+  "training_args": {
+    "backbone": "aves_core",
+    "seed": 42,
+    "epochs": 30,
+    "patience": 5,
+    "batch_size": 8,
+    "eval_batch_size": 1,
+    "eval_precision": "none",
+    "gradient_accumulation_steps": 1,
+    "learning_rate": 1e-05,
+    "head_learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "max_grad_norm": 1.0,
+    "dropout": 0.1,
+    "num_workers": 4,
+    "prefetch_factor": 4,
+    "mixed_precision": "float16",
+    "refit_train_validation": true
+  },
+  "seed": 42,
+  "sample_rate": 44100,
+  "label_names": [
+    "SW_Neo",
+    "SW_Luna",
+    "SW_Nikita",
+    "SW_Nana",
+    "SW_Yosefa",
+    "SW_Dana",
+    "NSW_1"
+  ],
+  "trainable_backbone_parameters": 94370944,
+  "trainable_head_parameters": 5383,
+  "best_epoch": 6,
+  "validation_map": 0.750923752784729,
+  "validation_score_scope": "Selection model trained on train only.",
+  "final_training": {
+    "split": "train+validation",
+    "epochs": 6,
+    "checkpoint": "final.pt",
+    "num_examples": 4760,
+    "seed": 42,
+    "schedule_horizon_epochs": 30,
+    "updates_per_epoch": 595
+  },
+  "refit_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.3278647205095832
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.1475146464440001
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.11580603086553952
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.09855591950531141
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.079779376558756
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.06414473990170176
+    }
+  ],
+  "test": {
+    "loss": 0.12202460458155699,
+    "map": 0.775066077709198
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.3425043748387573,
+      "validation": {
+        "loss": 0.18297335892649633,
+        "map": 0.4744282066822052
+      }
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.15525374563829022,
+      "validation": {
+        "loss": 0.1318017525409925,
+        "map": 0.680276095867157
+      }
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.1204530950939777,
+      "validation": {
+        "loss": 0.12024098860842752,
+        "map": 0.7168850302696228
+      }
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.10112781610567959,
+      "validation": {
+        "loss": 0.11978276282510099,
+        "map": 0.7467994093894958
+      }
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.08046555524378331,
+      "validation": {
+        "loss": 0.13158724485096865,
+        "map": 0.7417317032814026
+      }
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.0664903652702211,
+      "validation": {
+        "loss": 0.13016468665633252,
+        "map": 0.750923752784729
+      }
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.052171281050196944,
+      "validation": {
+        "loss": 0.14458803596547418,
+        "map": 0.7469401359558105
+      }
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.038637866619831825,
+      "validation": {
+        "loss": 0.15960759174001093,
+        "map": 0.7396460771560669
+      }
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.02717577603429423,
+      "validation": {
+        "loss": 0.18240112820997076,
+        "map": 0.7300781011581421
+      }
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.019278019199941345,
+      "validation": {
+        "loss": 0.1886813339152078,
+        "map": 0.7266160249710083
+      }
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.012122997534116825,
+      "validation": {
+        "loss": 0.2010484276112731,
+        "map": 0.7244070172309875
+      }
+    }
+  ]
+}

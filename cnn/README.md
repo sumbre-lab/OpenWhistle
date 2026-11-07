@@ -1,31 +1,29 @@
-# CNN Training
+# CNN whistle detector
 
-This folder contains the Torch/VGG16 CNN training code used for binary dolphin
-whistle detection.
+VGG16 classifier for whistle/noise detection in 0.4-second spectrogram windows.
+Training uses `dolphinteam/OpenWhistle-CNN`; inference and test-only evaluation
+use the published `dolphinteam/OpenWhistle-CNN-VGG16` checkpoint by default.
 
-## Files
+## Organization
 
-- `train.py`: training entry point and run orchestration.
-- `inference.py`: command-line inference on WAV/FLAC recordings.
-- `create_sequences_whistles.py`: post-process inference CSVs into whistle
-  sequence intervals.
-- `utils/config.py`: training defaults, environment overrides, and CLI parsing.
-- `utils/data.py`: Hugging Face dataset loading, split checks, and Torch datasets.
-- `utils/metrics.py`: epoch loop and classification metrics.
-- `utils/artifacts.py`: checkpoints, plots, and CSV/JSON reports.
-- `utils/model.py`: VGG16 model and spectrogram utilities.
-- `requirements.txt`: Python dependencies needed by this extraction.
-
-## Dataset
-
-By default, training reads the public Hugging Face dataset:
-
-```bash
-OpenWhistleNeurIPS26/OpenWhistle-CNN
+```text
+cnn/
+├── train.py                        # training and held-out evaluation
+├── inference.py                    # predictions on WAV/FLAC recordings
+├── create_sequences_whistles.py    # predictions to whistle intervals
+├── requirements.txt
+├── utils/                          # shared model, data, metrics and reports
+├── learning_curve/                 # training-set size experiment
+│   └── run_learning_curve.py
+├── analysis/                       # missed-whistle analysis and SNR figure
+├── external/                       # WMMSD/DCLDE presets and local preparation
+└── runs/                           # generated results, figures and checkpoints
 ```
 
-Override it with `TRAIN_DATASET_SOURCE`. The value can be either a Hugging Face
-dataset repo id or a local `datasets.DatasetDict` saved with `save_to_disk`.
+Start with the commands below. The [learning curve](learning_curve/README.md),
+[missed-whistle analysis and SNR figure](analysis/README.md) and
+[external datasets](external/README.md) have their own instructions.
+Run the examples from the repository root. Use `--help` to inspect each CLI.
 
 ## Installation
 
@@ -62,114 +60,78 @@ If `torch.cuda.is_available()` is `False`, either install a PyTorch wheel built
 for a CUDA version supported by the NVIDIA driver, or run the scripts with
 `--cpu-only`.
 
-## Example
+## Train or evaluate
 
 ```bash
-git clone https://github.com/OpenWhistleNeurIPS26/OpenWhistle.git
-cd OpenWhistle
 python cnn/train.py
+python cnn/train.py --test-only --no-wandb-enabled
 ```
 
-Inference on a folder of recordings:
+The second command evaluates the published checkpoint on the held-out test
+split. Override the weights with `--checkpoint-path /path/to/model.pt`.
+Training uses ImageNet initialization by default; its best checkpoint is selected
+by validation loss. Weights & Biases logging is disabled by default.
+
+`TRAIN_DATASET_SOURCE` overrides the dataset with a Hugging Face repo id or a
+local `DatasetDict` saved with `save_to_disk`. Training defaults and environment
+variables live in `utils/config.py`: batch size 4, 50 epochs, patience 10,
+learning rate `1e-5`, seed 7. Use `--cpu-only` to run on CPU.
+
+## Predict and extract intervals
 
 ```bash
 python cnn/inference.py \
   --recordings-dir /path/to/recordings \
-  --output-dir /path/to/predictions
-```
-
-For nested external recording folders, use recursive discovery:
-
-```bash
-python cnn/inference.py \
-  --recordings-dir /path/to/external_dataset \
-  --output-dir cnn/runs/inference_external \
+  --output-dir cnn/runs/inference \
   --recursive
-```
 
-External dataset presets are managed in `cnn/inference_conf.py`. To run the CNN
-inference with those presets:
-
-```bash
-python cnn/run_inference_dataset.py wmmsd dclde
-```
-
-If those external folders are missing, prepare the Python environment and wire
-the expected `DolphinWhistleExtractor/benchmark_data` folders automatically:
-
-```bash
-python cnn/setup_external_inference.py
-source .venv/bin/activate
-source cnn/.external_inference.env
-python cnn/run_inference_dataset.py wmmsd dclde
-```
-
-For a quick smoke test with a local checkpoint:
-
-```bash
-python cnn/setup_external_inference.py \
-  --skip-deps \
-  --run \
-  --limit 1 \
-  --cpu-only \
-  --checkpoint-path ~/Documents/DolphinWhistleExtractor/models/run_vgg_final/model_vgg_final_best.pt
-```
-
-Create whistle sequences from an inference output directory. Local paths are
-detected automatically, so `--source local` is optional:
-
-```bash
 python cnn/create_sequences_whistles.py \
   cnn/runs/inference \
   --output-csv cnn/runs/inference/whistle_sequences.csv
 ```
 
-Create whistle sequences from inference CSVs or a tabular Parquet split stored
-in a Hugging Face dataset repo. Use `--source hf` when the input is a Hugging
-Face repo id:
+Inference writes per-recording prediction CSVs and a `detections.csv` summary.
+Sequence extraction groups positive windows into intervals. It also accepts
+Hugging Face CSV/Parquet inputs via `--source hf`; see its `--help` for options.
 
-```bash
-python cnn/create_sequences_whistles.py \
-  organization/private-inference-dataset \
-  --source hf \
-  --hf-split train \
-  --output-csv cnn/runs/sequences/hf_sequences.csv
-```
+## Outputs and manuscript results
 
-By default, inference downloads and uses:
+New checkpoints, caches, plots and reports go under ignored `cnn/runs/` by
+default. Default output paths are anchored to this checkout, even when commands are
+launched from another directory. Explicit relative paths are interpreted from
+the working directory; supply separate `--models-dir`, `--figs-dir` and
+`--reports-dir` for independent runs. The learning-curve launcher resolves its
+relative `--output-root` from the repository root.
 
-```bash
-OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16
-```
+Training writes `reports/run_summary.json`; test-only evaluation writes
+`reports/test_summary.json`, `reports/test_roc_curve.csv` and
+`reports/roc_summary.json`, with plots under `figures/`. These scores describe
+windows, rather than complete recordings or whistle events. The positive class
+is whistle (label 1); CNN F1 is the binary whistle-class F1.
 
-Use `--checkpoint-path /path/to/model.pt` only when evaluating a local
-checkpoint.
+The generated outputs are organized as follows:
 
-Evaluate the published model on the test split only:
+| Directory | Contents |
+|---|---|
+| `runs/reports/`, `runs/figures/` | Published-checkpoint evaluation, ROC and confusion matrix |
+| `runs/learning_curve/` | Per-seed reports and checkpoints, aggregate CSVs and learning-curve figure |
+| `runs/analysis/` | Missed-whistle measurements, summary and figures |
+| `runs/f0_crepe/` | CREPE whistle F0 tracks and their protocol, used for SNR |
+| `runs/snr/` | Audio-derived SNR CSVs, protocol and PNG/PDF |
+| `runs/retrain-seed7-*/` | Independent training run, model, metrics, settings and log |
 
-```bash
-python cnn/train.py --test-only --no-wandb-enabled
-```
+See the [learning-curve instructions](learning_curve/README.md) and
+[analysis instructions](analysis/README.md) for reproduction commands.
 
-This uses `OpenWhistleNeurIPS26/OpenWhistle-CNN` split `test` and downloads the
-default checkpoint from `OpenWhistleNeurIPS26/OpenWhistle-CNN-VGG16`.
+## Shared implementation
 
-Useful environment variables:
-
-- `TRAIN_BATCH_SIZE` default: `4`
-- `TRAIN_NUM_EPOCHS` default: `50`
-- `TRAIN_PATIENCE` default: `10`
-- `TRAIN_LEARNING_RATE` default: `1e-5`
-- `TRAIN_INPUT_SOURCE` default: `spectrogram`, can be `audio` to regenerate
-  spectrograms from waveform payloads.
-- `TRAIN_PRETRAINED_BACKBONE` default: `1`
-- `TRAIN_FREEZE_BACKBONE` default: `0`
-- `TRAIN_NORMALIZATION_MEAN`/`TRAIN_NORMALIZATION_STD`: defaults are the
-  torchvision ImageNet normalization used by pretrained image backbones.
-- `TRAIN_CPU_ONLY` default: `0`
-- `TRAIN_EVAL_ONLY` default: `0`
-- `TRAIN_CHECKPOINT_PATH` default: the run's `model_best.pt`
-- `WANDB_ENABLED` default: `0`; use `--wandb-enabled` to log a run.
-
-The script writes checkpoints, figures, and reports under `cnn/runs`
-relative to the current working directory by default.
+| File in `utils/` | Responsibility |
+|---|---|
+| `config.py` | Defaults, environment variables and training CLI |
+| `data.py` | Dataset loading, split checks and data loaders |
+| `model.py` | VGG16, spectrograms and normalization |
+| `model_runtime.py` | Optimizer, scheduler and model setup |
+| `metrics.py` | Epoch loops and metrics |
+| `artifacts.py` | Checkpoints, plots and CSV/JSON reports |
+| `runtime_utils.py` | Seeds, devices and session IDs |
+| `wandb_logging.py` | Optional experiment logging |

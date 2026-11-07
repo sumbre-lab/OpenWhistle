@@ -1,16 +1,28 @@
+"""Frozen audio encoders and acoustic features used by the benchmark."""
+
+import hashlib
+import io
+import json
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from fractions import Fraction
+from pathlib import Path
+from typing import Any
+
 import librosa
 import numpy as np
 import soundfile as sf
 import torch
-from pathlib import Path
-from typing import Any
+import torchaudio
+from benchmark_revisions import MODEL_REVISIONS
+from scipy.signal import butter, hilbert, resample_poly, sosfilt, sosfiltfilt
 from transformers import (
+    AutoFeatureExtractor,
+    AutoModel,
     ClapModel,
     ClapProcessor,
-    Wav2Vec2FeatureExtractor,
     Wav2Vec2Model,
 )
-
 
 
 def _load_waveform_from_file(filename):
@@ -29,6 +41,9 @@ def _load_waveform_from_file(filename):
 def infer_device():
     if torch.cuda.is_available():
         device = torch.device("cuda")
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
         print("| Using CUDA for computation.")
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -39,8 +54,12 @@ def infer_device():
     return device
 
 
-def get_waveform(audio_source: Any, target_sample_rate):
-    if isinstance(audio_source, dict):
+def load_waveform(audio_source: Any):
+    if hasattr(audio_source, "get_all_samples"):
+        decoded = audio_source.get_all_samples()
+        waveform = decoded.data.detach().cpu().numpy().T
+        sample_rate = int(decoded.sample_rate)
+    elif isinstance(audio_source, dict):
         if audio_source.get("array") is not None:
             waveform = np.asarray(audio_source["array"], dtype=np.float32)
             sample_rate = int(audio_source["sampling_rate"])
@@ -48,10 +67,20 @@ def get_waveform(audio_source: Any, target_sample_rate):
                 waveform = waveform[:, np.newaxis]
             elif waveform.ndim == 2 and waveform.shape[0] < waveform.shape[1]:
                 waveform = waveform.T
+        elif audio_source.get("bytes") is not None:
+            # Hub parquet rows can include an original path absent locally.
+            # Embedded audio is the authoritative source in that case.
+            waveform, sample_rate = sf.read(
+                io.BytesIO(audio_source["bytes"]),
+                dtype="float32",
+                always_2d=True,
+            )
         elif audio_source.get("path"):
             waveform, sample_rate = _load_waveform_from_file(audio_source["path"])
         else:
-            raise ValueError("Unsupported audio mapping: expected an 'array' or 'path'.")
+            raise ValueError(
+                "Unsupported audio mapping: expected an 'array', 'path', or 'bytes'."
+            )
     else:
         waveform, sample_rate = _load_waveform_from_file(audio_source)
 
@@ -59,37 +88,166 @@ def get_waveform(audio_source: Any, target_sample_rate):
 
     # Convert to mono consistently, regardless of backend output shape.
     waveform = waveform.mean(axis=1)
+    waveform = np.nan_to_num(waveform, copy=False)
+    return waveform, int(sample_rate)
 
+
+def get_waveform(audio_source: Any, target_sample_rate):
+    waveform, sample_rate = load_waveform(audio_source)
     if sample_rate != target_sample_rate:
-        waveform = librosa.resample(
-            waveform, orig_sr=sample_rate, target_sr=target_sample_rate
+        waveform = (
+            torchaudio.functional.resample(
+                torch.from_numpy(waveform),
+                orig_freq=sample_rate,
+                new_freq=target_sample_rate,
+            )
+            .cpu()
+            .numpy()
         )
 
     return torch.tensor(waveform, dtype=torch.float32).unsqueeze(0)
 
 
+BTB3_ENCODER_SAMPLE_RATE = 16000
+BTB3_SAFE_UPPER_HZ = 21800.0
+
+
+def _match_length(waveform: np.ndarray, length: int) -> np.ndarray:
+    if waveform.shape[0] > length:
+        waveform = waveform[:length]
+    elif waveform.shape[0] < length:
+        waveform = np.pad(waveform, (0, length - waveform.shape[0]))
+    return waveform.astype(np.float32, copy=False)
+
+
+def _resample_poly_exact(waveform: np.ndarray, sample_rate: int) -> np.ndarray:
+    if sample_rate == BTB3_ENCODER_SAMPLE_RATE:
+        return waveform.astype(np.float32, copy=False)
+    ratio = Fraction(BTB3_ENCODER_SAMPLE_RATE, sample_rate).limit_denominator(1000)
+    output = resample_poly(
+        waveform,
+        ratio.numerator,
+        ratio.denominator,
+    ).astype(np.float32)
+    target_length = int(
+        round(waveform.shape[0] * BTB3_ENCODER_SAMPLE_RATE / float(sample_rate))
+    )
+    return _match_length(output, target_length)
+
+
+def _filter_sos(
+    waveform: np.ndarray,
+    sample_rate: int,
+    cutoff: float | tuple[float, float],
+    filter_type: str,
+) -> np.ndarray:
+    nyquist = 0.5 * float(sample_rate)
+    if isinstance(cutoff, tuple):
+        low_hz, high_hz = cutoff
+        normalized_cutoff = [
+            max(float(low_hz), 1.0) / nyquist,
+            min(float(high_hz), nyquist * 0.98) / nyquist,
+        ]
+    else:
+        normalized_cutoff = min(float(cutoff), nyquist * 0.98) / nyquist
+    sos = butter(8, normalized_cutoff, btype=filter_type, output="sos")
+    try:
+        return sosfiltfilt(sos, waveform).astype(np.float32)
+    except ValueError:
+        return sosfilt(sos, waveform).astype(np.float32)
+
+
+def make_btb3_views(
+    waveform: np.ndarray,
+    sample_rate: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Reproduce the BTB3 transform used for continued pretraining on Jean Zay."""
+    waveform = np.asarray(waveform, dtype=np.float32)
+    band0 = _resample_poly_exact(
+        _filter_sos(waveform, sample_rate, 8000.0, "lowpass"),
+        sample_rate,
+    )
+
+    shifted_views = []
+    for low_hz, high_hz in (
+        (8000.0, 16000.0),
+        (16000.0, BTB3_SAFE_UPPER_HZ),
+    ):
+        band = _filter_sos(
+            waveform,
+            sample_rate,
+            (low_hz, high_hz),
+            "bandpass",
+        )
+        analytic = hilbert(band.astype(np.float64, copy=False))
+        time = np.arange(band.shape[0], dtype=np.float64) / float(sample_rate)
+        shifted = np.real(analytic * np.exp(-2j * np.pi * low_hz * time)).astype(
+            np.float32
+        )
+        shifted = _filter_sos(shifted, sample_rate, 8000.0, "lowpass")
+        shifted_views.append(_resample_poly_exact(shifted, sample_rate))
+
+    return (
+        band0,
+        _match_length(shifted_views[0], band0.shape[0]),
+        _match_length(shifted_views[1], band0.shape[0]),
+    )
+
+
 class BioLingual:
-    def __init__(self, *args, **kwargs):
-        self.processor = ClapProcessor.from_pretrained("davidrrobinson/biolingual")
-        model = ClapModel.from_pretrained("davidrrobinson/biolingual")
+    def __init__(
+        self, *args, batch_native_models=False, hf_local_files_only=False, **kwargs
+    ):
+        revision = MODEL_REVISIONS["davidrrobinson/biolingual"]
+        self.processor = ClapProcessor.from_pretrained(
+            "davidrrobinson/biolingual",
+            revision=revision,
+            local_files_only=hf_local_files_only,
+        )
+        model = ClapModel.from_pretrained(
+            "davidrrobinson/biolingual",
+            revision=revision,
+            local_files_only=hf_local_files_only,
+        )
 
         self.device = infer_device()
 
         self.model = model.to(self.device).eval()
+        self.batch_native_models = batch_native_models
+        self.sample_rate = 48000
+        self.mixed_precision = False
+
+    def embed_batch(self, audio_sources):
+        if not self.batch_native_models:
+            return torch.stack([self(source) for source in audio_sources])
+        waveforms = [
+            get_waveform(source, 48000).squeeze(0).numpy() for source in audio_sources
+        ]
+        processed = self.processor.feature_extractor(
+            waveforms, return_tensors="pt", sampling_rate=48000
+        )
+        with torch.inference_mode():
+            outputs = self.model.get_audio_features(
+                input_features=processed["input_features"].to(self.device)
+            )
+        return outputs if isinstance(outputs, torch.Tensor) else outputs.pooler_output
 
     def __call__(self, file_path: str):
         waveform = get_waveform(file_path, 48000)
         waveform = waveform.squeeze().numpy()
 
-        processed = self.processor(
-            audio=waveform, return_tensors="pt", sampling_rate=48000
+        processed = self.processor.feature_extractor(
+            waveform, return_tensors="pt", sampling_rate=48000
         )
         inputs = processed["input_features"].to(self.device)
 
         with torch.no_grad():
             outputs = self.model.get_audio_features(input_features=inputs)
 
-        return outputs.pooler_output.squeeze(0)
+        features = (
+            outputs if isinstance(outputs, torch.Tensor) else outputs.pooler_output
+        )
+        return features.squeeze(0)
 
 
 class Aves:
@@ -98,6 +256,9 @@ class Aves:
         aves_model_path: str,
         aves_config_path: str,
         sample_rate: int = 44100,
+        hf_feature_mode: str = "standard",
+        audio_workers: int = 0,
+        batch_native_models: bool = False,
         *args,
         **kwargs,
     ):
@@ -122,8 +283,96 @@ class Aves:
             for_inference=True,
         )
         self.sample_rate = sample_rate
+        self.feature_mode = hf_feature_mode
+        self.mixed_precision = False
+        self.batch_native_models = batch_native_models
+        self.audio_executor = (
+            ThreadPoolExecutor(
+                max_workers=audio_workers,
+                thread_name_prefix="openwhistle-aves-audio",
+            )
+            if audio_workers > 0
+            else None
+        )
+
+    def embed_batch(self, audio_sources):
+        if not self.feature_mode.startswith("btb3_"):
+            if not self.batch_native_models:
+                return torch.stack(
+                    [self(audio_source) for audio_source in audio_sources]
+                )
+            waveforms = [
+                get_waveform(source, self.sample_rate).squeeze(0)
+                for source in audio_sources
+            ]
+            return self._embed_native_waveforms(waveforms)
+
+        def prepare_views(audio_source):
+            waveform, sample_rate = load_waveform(audio_source)
+            return make_btb3_views(waveform, sample_rate)
+
+        if self.audio_executor is None:
+            source_views = [prepare_views(source) for source in audio_sources]
+        else:
+            source_views = list(self.audio_executor.map(prepare_views, audio_sources))
+
+        flat_views = [
+            torch.from_numpy(view) for views in source_views for view in views
+        ]
+        pooled = self._embed_native_waveforms(flat_views)
+        pooled = pooled.reshape(len(audio_sources), 3, -1)
+        if self.feature_mode == "btb3_concat":
+            return pooled.reshape(len(audio_sources), -1)
+        if self.feature_mode == "btb3_mean":
+            return pooled.mean(dim=1)
+        raise ValueError(f"Unknown AVES feature mode: {self.feature_mode}")
+
+    def _embed_native_waveforms(self, waveforms):
+        lengths = torch.tensor(
+            [waveform.shape[0] for waveform in waveforms],
+            dtype=torch.int64,
+        )
+        inputs = torch.nn.utils.rnn.pad_sequence(
+            waveforms,
+            batch_first=True,
+        )
+        device = next(self.feature_extractor.model.parameters()).device
+        inputs = inputs.to(device, non_blocking=True)
+        lengths = lengths.to(device, non_blocking=True)
+
+        with torch.inference_mode():
+            layer_outputs, output_lengths = (
+                self.feature_extractor.model.extract_features(inputs, lengths)
+            )
+        hidden = layer_outputs[-1]
+        positions = torch.arange(hidden.shape[1], device=device).unsqueeze(0)
+        mask = positions < output_lengths.unsqueeze(1)
+        weights = mask.unsqueeze(-1).to(hidden.dtype)
+        pooled = (hidden * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+        return pooled
 
     def __call__(self, file_path):
+        if self.feature_mode.startswith("btb3_"):
+            waveform, sample_rate = load_waveform(file_path)
+            views = make_btb3_views(waveform, sample_rate)
+            band_embeddings = []
+            for view in views:
+                view_tensor = torch.from_numpy(view).unsqueeze(0)
+                band_embeddings.append(
+                    self.feature_extractor.extract_features(
+                        view_tensor,
+                        layers=-1,
+                    )
+                    .mean(dim=1)
+                    .squeeze(0)
+                )
+            stacked = torch.stack(band_embeddings)
+            if self.feature_mode == "btb3_concat":
+                return stacked.reshape(-1)
+            if self.feature_mode == "btb3_mean":
+                return stacked.mean(dim=0)
+            raise ValueError(f"Unknown AVES feature mode: {self.feature_mode}")
+
         waveform = get_waveform(file_path, self.sample_rate)
         return (
             self.feature_extractor.extract_features(waveform, layers=-1)
@@ -131,37 +380,229 @@ class Aves:
             .squeeze()
         )
 
-class Dolph2Vec:
-    def __init__(self, dolph2vec_model_path: str, dolph2vec_config_path: str, sample_rate: int = 44100, *args, **kwargs):
-        config_path = Path(dolph2vec_config_path)
-        if config_path.exists():
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_json_file(
-                str(config_path)
+
+class HuggingFaceAvesBackbone(Aves):
+    """Load a versioned native AVES export without modifying the Hub cache."""
+
+    def __init__(
+        self,
+        hf_model_id,
+        hf_sample_rate=None,
+        hf_local_dir=None,
+        hf_local_files_only=False,
+        **kwargs,
+    ):
+        from aves_models import AVES_SCRATCH_MODELS
+        from huggingface_hub import hf_hub_download
+
+        specifications = {model["model_id"]: model for model in AVES_SCRATCH_MODELS}
+        if hf_model_id not in specifications:
+            raise ValueError(f"Unknown native AVES export: {hf_model_id}")
+        spec = specifications[hf_model_id]
+        if hf_sample_rate is not None and hf_sample_rate != spec["sample_rate"]:
+            raise ValueError("Native OpenWhistle AVES exports require 44100 Hz")
+        if hf_local_dir is None:
+            model_path = hf_hub_download(
+                repo_id=hf_model_id,
+                revision=spec["revision"],
+                filename=spec["model_filename"],
+                local_files_only=hf_local_files_only,
+            )
+            config_path = hf_hub_download(
+                repo_id=hf_model_id,
+                revision=spec["revision"],
+                filename=spec["config_filename"],
+                local_files_only=hf_local_files_only,
             )
         else:
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
-                dolph2vec_config_path
-            )
-        self.model = Wav2Vec2Model.from_pretrained(dolph2vec_model_path)
+            local_dir = Path(hf_local_dir).expanduser().resolve()
+            model_path = local_dir / spec["model_filename"]
+            config_path = local_dir / spec["config_filename"]
+            for path, expected in (
+                (model_path, spec["weights_sha256"]),
+                (config_path, spec["config_sha256"]),
+            ):
+                with path.open("rb") as handle:
+                    digest = hashlib.sha256()
+                    for block in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(block)
+                    actual = digest.hexdigest()
+                if actual != expected:
+                    raise ValueError(
+                        f"Local file does not match {hf_model_id}@{spec['revision']}: {path}"
+                    )
+            model_path, config_path = str(model_path), str(config_path)
+            print(f"Using verified local AVES checkpoint: {local_dir}")
+        config = json.loads(Path(config_path).read_text())
+        if config.pop("sample_rate", spec["sample_rate"]) != spec["sample_rate"]:
+            raise ValueError("Native AVES config has an unexpected sample rate")
+        # TorchAudio's constructor rejects sample_rate metadata. Never rewrite
+        # a downloaded symlink, as that would corrupt the shared Hub blob.
+        self._config_directory = tempfile.TemporaryDirectory(prefix="openwhistle-aves-")
+        normalized_path = Path(self._config_directory.name) / "model_config.json"
+        normalized_path.write_text(json.dumps(config))
+        kwargs.pop("sample_rate", None)
+        kwargs.pop("aves_model_path", None)
+        kwargs.pop("aves_config_path", None)
+        super().__init__(
+            aves_model_path=model_path,
+            aves_config_path=str(normalized_path),
+            sample_rate=spec["sample_rate"],
+            **kwargs,
+        )
+        self.model_id = hf_model_id
+        self.revision = spec["revision"]
 
+
+class _Wav2Vec2Encoder(Wav2Vec2Model):
+    """Ignore the known pretraining heads when loading the published encoder."""
+
+    _keys_to_ignore_on_load_unexpected = [
+        *(Wav2Vec2Model._keys_to_ignore_on_load_unexpected or []),
+        r"^quantizer\.(?:codevectors|weight_proj\.(?:weight|bias))$",
+        r"^project_(?:hid|q)\.(?:weight|bias)$",
+    ]
+
+
+class HuggingFaceAudioBackbone:
+    """Mean-pool the last hidden state of a Transformers audio backbone."""
+
+    def __init__(
+        self,
+        hf_model_id: str,
+        hf_sample_rate: int | None = None,
+        mixed_precision: bool = False,
+        amp_dtype: str = "float16",
+        audio_workers: int = 0,
+        hf_feature_mode: str = "standard",
+        hf_local_files_only: bool = False,
+        *args,
+        **kwargs,
+    ):
+        if not hf_model_id:
+            raise ValueError("hf_model_id is required for a Hugging Face backbone.")
+
+        self.model_id = hf_model_id
+        self.feature_mode = hf_feature_mode
+        if self.feature_mode not in {
+            "standard",
+            "btb3_concat",
+            "btb3_mean",
+        }:
+            raise ValueError(f"Unknown Hugging Face feature mode: {self.feature_mode}")
+        revision = MODEL_REVISIONS.get(hf_model_id)
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained(
+            hf_model_id, revision=revision, local_files_only=hf_local_files_only
+        )
+        model_class = (
+            _Wav2Vec2Encoder
+            if hf_model_id == "dolphinteam/OpenWhistle-Wav2Vec2.0"
+            else AutoModel
+        )
+        self.model = model_class.from_pretrained(
+            hf_model_id, revision=revision, local_files_only=hf_local_files_only
+        )
+        self.sample_rate = int(
+            hf_sample_rate
+            if hf_sample_rate is not None
+            else getattr(self.feature_extractor, "sampling_rate", 44100)
+        )
+        if hf_sample_rate is not None:
+            self.feature_extractor.sampling_rate = self.sample_rate
         self.device = infer_device()
         self.model = self.model.to(self.device).eval()
-        self.sample_rate = sample_rate
+        self.mixed_precision = bool(mixed_precision and self.device.type == "cuda")
+        self.amp_dtype = {
+            "float16": torch.float16,
+            "bfloat16": torch.bfloat16,
+        }[amp_dtype]
+        self.audio_executor = (
+            ThreadPoolExecutor(
+                max_workers=audio_workers,
+                thread_name_prefix="openwhistle-audio",
+            )
+            if audio_workers > 0
+            else None
+        )
+
+    def _pool_hidden_state(self, hidden, attention_mask):
+        if attention_mask is None:
+            return hidden.mean(dim=1)
+
+        # Convert the waveform-level mask to the feature-vector length when the
+        # model exposes the standard Wav2Vec2/HuBERT helper.
+        if hasattr(self.model, "_get_feature_vector_attention_mask"):
+            attention_mask = self.model._get_feature_vector_attention_mask(
+                hidden.shape[1], attention_mask
+            )
+        elif attention_mask.shape[1] != hidden.shape[1]:
+            return hidden.mean(dim=1)
+
+        weights = attention_mask.unsqueeze(-1).to(hidden.dtype)
+        return (hidden * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+
+    def embed_batch(self, audio_sources):
+        def prepare_waveform(audio_source):
+            if self.feature_mode.startswith("btb3_"):
+                waveform, sample_rate = load_waveform(audio_source)
+                return make_btb3_views(waveform, sample_rate)
+            return (
+                get_waveform(
+                    audio_source,
+                    self.sample_rate,
+                )
+                .squeeze()
+                .numpy()
+            )
+
+        if self.audio_executor is None:
+            waveforms = [
+                prepare_waveform(audio_source) for audio_source in audio_sources
+            ]
+        else:
+            waveforms = list(self.audio_executor.map(prepare_waveform, audio_sources))
+        if self.feature_mode.startswith("btb3_"):
+            waveforms = [view for source_views in waveforms for view in source_views]
+            encoder_sample_rate = BTB3_ENCODER_SAMPLE_RATE
+        else:
+            encoder_sample_rate = self.sample_rate
+
+        inputs = self.feature_extractor(
+            waveforms,
+            sampling_rate=encoder_sample_rate,
+            padding=True,
+            # Exclude padded frames when pooling variable-length clips.
+            return_attention_mask=True,
+            return_tensors="pt",
+        )
+        model_inputs = {
+            key: value.pin_memory().to(self.device, non_blocking=True)
+            if self.device.type == "cuda"
+            else value.to(self.device)
+            for key, value in inputs.items()
+            if isinstance(value, torch.Tensor)
+        }
+
+        with torch.inference_mode():
+            with torch.autocast(
+                device_type=self.device.type,
+                dtype=self.amp_dtype,
+                enabled=self.mixed_precision,
+            ):
+                outputs = self.model(**model_inputs)
+
+        hidden = outputs.last_hidden_state
+        attention_mask = model_inputs.get("attention_mask")
+        pooled = self._pool_hidden_state(hidden, attention_mask).float()
+        if self.feature_mode.startswith("btb3_"):
+            pooled = pooled.reshape(len(audio_sources), 3, -1)
+            if self.feature_mode == "btb3_concat":
+                return pooled.reshape(len(audio_sources), -1)
+            return pooled.mean(dim=1)
+        return pooled
 
     def __call__(self, file_path):
-        waveform = get_waveform(file_path, self.sample_rate).squeeze().numpy()
-
-        features = self.feature_extractor(
-            raw_speech=waveform,
-            padding="longest",
-            return_tensors="pt",
-            sampling_rate=self.sample_rate,
-        )["input_values"].to(self.device)
-
-        with torch.no_grad():
-            res = self.model(features, output_hidden_states=True)
-
-        return res.hidden_states[-1].mean(1).squeeze()
+        return self.embed_batch([file_path]).squeeze(0)
 
 
 class Spectrogram:
@@ -171,10 +612,6 @@ class Spectrogram:
     def __call__(self, file_path):
         waveform = get_waveform(file_path, self.sample_rate)
         waveform = waveform.squeeze().numpy()
-
-        # Compute the spectrogram
-        # spectrogram = torchaudio.transforms.Spectrogram()(torch.tensor(waveform))
-        # spectrogram = torch.mean(spectrogram, dim=0)
 
         S = librosa.feature.melspectrogram(y=waveform, sr=self.sample_rate, n_mels=128)
         feats = np.mean(
@@ -192,7 +629,9 @@ class MFCC:
         waveform = get_waveform(file_path, self.sample_rate)
         waveform = waveform.squeeze().numpy()
 
-        mfccs = librosa.feature.mfcc(y=waveform, sr=self.sample_rate, n_mfcc=self.n_mfcc)
+        mfccs = librosa.feature.mfcc(
+            y=waveform, sr=self.sample_rate, n_mfcc=self.n_mfcc
+        )
         return torch.Tensor(np.mean(mfccs, axis=1))  # Averaged MFCCs
 
 

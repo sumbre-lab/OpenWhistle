@@ -1,107 +1,57 @@
-# --- Audio / media (datasets, generated samples) ---
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Environments and local configuration
+.venv*/
+venv/
+env/
+.env
+.env.*
+!.env.example
+cnn/.external_inference.env
+
+# Local experiments, downloads and model weights
+runs/
+.cache/
+wandb/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Audio is distributed through the published datasets
 *.wav
 *.aif
 *.aiff
 *.flac
 *.mp3
 
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-pip-log.txt
-pip-delete-this-directory.txt
+# Published results retain summaries, not prediction/bootstrap arrays
+/experiments/benchmark/results/**/*.npz
+/experiments/finetuning/results/**/*.npz
 
-# --- Virtual environments ---
-.venv/
-venv/
-ENV/
-env/
-.env/
-.env.*
-!.env.example
-cnn/.external_inference.env
+# Keep the two published figures; ignore other generated figure artifacts
+/datasets_figures/output/*
+!/datasets_figures/output/fig_dataset_overview.pdf
+!/datasets_figures/output/fig_dataset_overview.png
+!/datasets_figures/output/fig_classification_overview.pdf
+!/datasets_figures/output/fig_classification_overview.png
 
-# --- Test / type / lint caches ---
-.pytest_cache/
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.ruff_cache/
-.tox/
-.nox/
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-htmlcov/
-
-# --- Jupyter ---
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-
-# --- ML / experiment tooling (local runs, caches) ---
-wandb/
-mlruns/
-.neptune/
-dvc.lock.bak
-*.pt
-*.pth
-*.ckpt
-*.safetensors
-lightning_logs/
-tensorboard_logs/
-runs/
-
-# --- Hugging Face & local download caches (repo-local only) ---
-.cache/
-
-# --- OS ---
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-*~
-
-# --- Editors / IDEs ---
-.idea/
-*.swp
-*.swo
-*.swn
-.project
-.pydevproject
-.settings/
-*.code-workspace
-.vscode/
-
-# --- Generated figures (OpenWhistle/figures) ---
-figures/output/
-# Large optional CSV (~25 MB; copy from DolphinDataset outputs/pretraining/ if needed)
-figures/data/inter_detected_whistle_intervals.csv
-
-# --- Logs & temp ---
+# Logs, temporary files and editor metadata
 *.log
 *.tmp
 *.temp
-.tmp/
-.temp/
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

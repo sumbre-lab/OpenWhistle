@@ -13,5 +13,5 @@ def repo_root() -> Path:
     return PACKAGE_ROOT.parent
 
 
-PRETRAINING_SEGMENTS_HF_ID = "OpenWhistleNeurIPS26/OpenWhistle-Pretraining"
-CLASSIFICATION_HF_ID = "OpenWhistleNeurIPS26/OpenWhistle-Classification-Finetuning"
+PRETRAINING_SEGMENTS_HF_ID = "dolphinteam/OpenWhistle-Pretraining"
+CLASSIFICATION_HF_ID = "dolphinteam/OpenWhistle-Classification-Finetuning"

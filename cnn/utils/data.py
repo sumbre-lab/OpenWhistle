@@ -132,7 +132,7 @@ def load_local_splits(dataset_dir: str, config: TrainConfig) -> DatasetDict:
 
 def load_dataset_source(config: TrainConfig) -> DatasetDict:
     source = config.dataset_source
-    source_path = Path(source)
+    source_path = Path(source).expanduser()
     if source_path.exists():
         print(f'Loading local dataset from disk: {source_path}')
         return load_local_splits(str(source_path), config)

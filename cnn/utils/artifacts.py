@@ -79,19 +79,19 @@ def plot_training_curves(history: dict[str, list[float]], config: TrainConfig) -
 def maybe_build_roc_curve(
     split_name: str,
     metrics: dict[str, np.ndarray | float],
-) -> tuple[str, np.ndarray, np.ndarray, float] | None:
+) -> tuple[str, np.ndarray, np.ndarray, np.ndarray, float] | None:
     labels = metrics['labels']
     scores = metrics['scores']
     if np.unique(labels).size < 2:
         print(f'ROC skipped for {split_name}: split contains a single class.')
         return None
 
-    fpr, tpr, _ = roc_curve(labels, scores, pos_label=1)
+    fpr, tpr, thresholds = roc_curve(labels, scores, pos_label=1)
     roc_auc = auc(fpr, tpr)
-    return split_name, fpr, tpr, roc_auc
+    return split_name, fpr, tpr, thresholds, roc_auc
 
 def plot_roc_curves(
-    curves: list[tuple[str, np.ndarray, np.ndarray, float]],
+    curves: list[tuple[str, np.ndarray, np.ndarray, np.ndarray, float]],
     config: TrainConfig,
 ) -> None:
     if not curves:
@@ -99,17 +99,48 @@ def plot_roc_curves(
         return
 
     plt.figure(figsize=(8, 6))
-    for split_name, fpr, tpr, roc_auc in curves:
-        plt.plot(fpr, tpr, lw=2, label=f'{split_name.capitalize()} ROC (AUC = {roc_auc:.2f})')
+    for split_name, fpr, tpr, _, roc_auc in curves:
+        plt.plot(fpr, tpr, lw=2, label=f'{split_name.capitalize()} ROC (AUC = {roc_auc:.3f})')
 
     plt.plot([0, 1], [0, 1], linestyle='--', lw=2, color='black')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC - validation and test')
+    plt.title('ROC - ' + ' and '.join(split_name for split_name, *_ in curves))
     plt.legend(loc='lower right')
     plt.tight_layout()
     plt.savefig(os.path.join(config.figs_dir, 'roc_validation_test.png'))
     plt.close()
+
+
+def save_roc_artifacts(
+    curves: list[tuple[str, np.ndarray, np.ndarray, np.ndarray, float]],
+    config: TrainConfig,
+) -> str | None:
+    if not curves:
+        print('No ROC curve generated because no evaluation split contained both classes.')
+        return None
+    plot_roc_curves(curves, config)
+    summary = {
+        'positive_class': 'whistle',
+        'evaluation_unit': f'{config.spectrogram_config.sliding_window:g}-second window',
+        'score': 'softmax probability of whistle',
+        'splits': {},
+    }
+    for split_name, fpr, tpr, thresholds, roc_auc in curves:
+        csv_path = os.path.join(config.reports_dir, f'{split_name}_roc_curve.csv')
+        with open(csv_path, 'w', newline='', encoding='utf-8') as handle:
+            writer = csv.writer(handle)
+            writer.writerow(['threshold', 'false_positive_rate', 'true_positive_rate'])
+            writer.writerows(zip(thresholds, fpr, tpr))
+        summary['splits'][split_name] = {
+            'roc_auc': float(roc_auc),
+            'csv_path': csv_path,
+            'figure_path': os.path.join(config.figs_dir, 'roc_validation_test.png'),
+        }
+    summary_path = os.path.join(config.reports_dir, 'roc_summary.json')
+    with open(summary_path, 'w', encoding='utf-8') as handle:
+        json.dump(summary, handle, indent=2)
+    return summary_path
 
 def save_confusion_matrix_artifacts(
     split_name: str,
@@ -192,6 +223,7 @@ def write_run_summary_json(
                 'positive_prediction_rate': float(
                     validation_metrics['positive_prediction_rate']
                 ),
+                'roc_auc': validation_metrics.get('roc_auc'),
             },
         },
         'artifacts': {
@@ -211,6 +243,7 @@ def write_run_summary_json(
             'precision': float(test_metrics['precision']),
             'recall': float(test_metrics['recall']),
             'positive_prediction_rate': float(test_metrics['positive_prediction_rate']),
+            'roc_auc': test_metrics.get('roc_auc'),
         }
 
     summary_path = os.path.join(config.reports_dir, 'run_summary.json')
@@ -239,6 +272,7 @@ def write_test_only_summary_json(
                 'precision': float(test_metrics['precision']),
                 'recall': float(test_metrics['recall']),
                 'positive_prediction_rate': float(test_metrics['positive_prediction_rate']),
+                'roc_auc': test_metrics.get('roc_auc'),
             },
         },
         'artifacts': {
