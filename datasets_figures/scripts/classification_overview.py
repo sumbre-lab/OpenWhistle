@@ -810,7 +810,7 @@ def plot_classification_overview_figure(
         font_extra=ox,
         group_labels=("Pretraining", "Expert-\nannotated set"),
     )
-    ax_f.set_ylabel("Estimated SNR (dB)")
+    ax_f.set_ylabel("SNR (dB)")
     ax_f.tick_params(axis="x", labelsize=11)
 
     for ax, lab in (

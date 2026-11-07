@@ -198,7 +198,7 @@ def plot_dataset_snr(arrays, output_dir, diagnostic=False):
     fig, ax = plt.subplots(figsize=(4.2, 4.4))
     draw_snr_detection_vs_gold_on_ax(ax, arrays[0], arrays[1], sns, slim_violin=True,
                                    group_labels=('Pretraining', 'Expert-\nannotated set'))
-    ax.set_ylabel('Estimated SNR (dB)')
+    ax.set_ylabel('SNR (dB)')
     if diagnostic:
         ax.set_title('SNR (diagnostic subset)', fontweight='bold')
     fig.subplots_adjust(left=0.18, right=0.77, bottom=0.16, top=0.9)
