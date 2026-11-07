@@ -89,8 +89,8 @@ describes the linear probing evaluation and generated tables.
 │   └── finetuning/             # training outputs and checkpoints
 ├── tests/
 ├── Annotation_Pipeline.png
-├── LICENSE                     # CC BY 4.0, original software and documentation
-├── LICENSE-DATA                # CC BY 4.0, datasets
+├── LICENSE                     # MIT, original source code and documentation
+├── LICENSE-DATA                # CC BY 4.0, datasets, model weights, figures and results
 └── README.md
 ```
 
@@ -179,11 +179,12 @@ dataset figures are written to `datasets_figures/output/`.
 
 ## License
 
-The original OpenWhistle software and its accompanying documentation are licensed
-under [CC BY 4.0](LICENSE). The OpenWhistle datasets are also licensed under
-[CC BY 4.0](LICENSE-DATA), as are the published OpenWhistle wav2vec 2.0 weights.
-Third-party code, dependencies and other pretrained checkpoints retain their
-own licenses; see their respective notices and model cards.
+The original OpenWhistle source code and its documentation are licensed under
+the [MIT License](LICENSE). The OpenWhistle datasets, the published OpenWhistle
+wav2vec 2.0 weights, and the figures and result files in this repository are
+licensed under [CC BY 4.0](LICENSE-DATA). Third-party code, dependencies and
+other pretrained checkpoints retain their own licenses; see their respective
+notices and model cards.
 
 ## Authors
 
