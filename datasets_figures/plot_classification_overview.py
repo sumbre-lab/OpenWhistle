@@ -34,6 +34,15 @@ from datasets_figures.scripts.paths import CLASSIFICATION_HF_ID, DATA_DIR, PRETR
 from datasets_figures.scripts.sidecars import refresh_classification_sidecars, segment_duration_seconds_from_hf
 
 
+def _portable_path(path: Path) -> str:
+    """Path for provenance records: repository-relative, or only the name outside the checkout."""
+    path = Path(path).resolve()
+    try:
+        return path.relative_to(_REPO).as_posix()
+    except ValueError:
+        return path.name
+
+
 def _sequence_durations_s(*, data_dir: Path) -> np.ndarray | None:
     seq_path = data_dir / "audio_segment_durations.csv"
     if seq_path.is_file():
@@ -86,7 +95,7 @@ def main() -> None:
     try:
         snr_pretraining, snr_classification, snr_protocol = load_snr_comparison(args.snr_dir)
     except (OSError, ValueError, KeyError) as exc:
-        ap.error(f"Cannot use panel F inputs: {exc}. Run python cnn/analysis/plot_snr.py first.")
+        ap.error(f"Cannot use panel F inputs: {exc}. Run python cnn/analysis/compute_f0_crepe.py, then plot_snr.py first.")
     source = snr_protocol["datasets"]["classification_all"]
     if (args.hf_id, args.config) != (source["repo"], source["config"]):
         ap.error("Classification dataset/config must match the SNR protocol for panel F.")
@@ -166,8 +175,8 @@ def main() -> None:
     provenance = {
         "classification": source,
         "snr_protocol": snr_protocol,
-        "snr_inputs_sha256": {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
-        "auxiliary_csv_sha256": {str(p.resolve()): hashlib.sha256(p.read_bytes()).hexdigest()
+        "snr_inputs_sha256": {_portable_path(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
+        "auxiliary_csv_sha256": {_portable_path(p): hashlib.sha256(p.read_bytes()).hexdigest()
                                  for p in sidecars if p.is_file()},
         "valid_snr_counts": {"pretraining": len(snr_pretraining), "classification_all": len(snr_classification)},
         "snr_display_range_db": [-10, 36],

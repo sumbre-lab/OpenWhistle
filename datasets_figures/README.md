@@ -30,9 +30,11 @@ python datasets_figures/plot_dataset_overview.py
 python datasets_figures/plot_classification_overview.py
 ```
 
-Before rendering the classification figure, compute SNR once:
+Before rendering the classification figure, compute SNR once (CREPE F0 tracks on
+a GPU, then SNR on the CPU; see the [SNR instructions](../cnn/analysis/README.md#snr-figure)):
 
 ```bash
+python cnn/analysis/compute_f0_crepe.py
 python cnn/analysis/plot_snr.py --workers 16
 ```
 
@@ -109,10 +111,14 @@ and filenames are configured through the environment variables documented in
 - **A–B)** Temporal structure of dolphin vocalizations: distributions of inter-whistle intervals (A) and whistle sequence durations (B).
 - **C–E)** Properties of the expert-annotated subset: temporal coverage (C), class distribution (D), and whistle duration (E).
 - **F)** Estimated signal-to-noise ratio (SNR) of the published pretraining
-  sequences (left, 31,780 rows) and the classification dataset, `unbalanced`
-  config (formerly `all`) across train, validation and test (right, 8,353 valid rows). Each audio row
-  contributes one spectrogram-ridge estimate using noise-subtracted flanking
-  bands. One classification clip is too short for estimation and is excluded.
+  sequences (left, 31,704 valid of 31,780 rows) and the expert-annotated set
+  (right, 8,353 valid of 8,354 rows): the classification dataset, `unbalanced`
+  config (formerly `all`), across train, validation and test. Each audio row
+  contributes one band SNR measured around its whistle F0 track (CREPE,
+  bottlenose-dolphin model), pooled over the frames where CREPE detects the
+  whistle, with noise-subtracted flanking bands. CREPE finds no confident
+  whistle frame in 76 pretraining rows and one 40 ms classification clip,
+  which are excluded.
   Dashed lines within the violins indicate quartiles. The displayed range is
   −10 to 36 dB; values outside it remain in the source CSVs. The horizontal
   3/6/10 dB guides retain the original figure's visual convention.

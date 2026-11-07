@@ -116,6 +116,7 @@ The generated outputs are organized as follows:
 | `runs/reports/`, `runs/figures/` | Published-checkpoint evaluation, ROC and confusion matrix |
 | `runs/learning_curve/` | Per-seed reports and checkpoints, aggregate CSVs and learning-curve figure |
 | `runs/analysis/` | Missed-whistle measurements, summary and figures |
+| `runs/f0_crepe/` | CREPE whistle F0 tracks and their protocol, used for SNR |
 | `runs/snr/` | Audio-derived SNR CSVs, protocol and PNG/PDF |
 | `runs/retrain-seed7-*/` | Independent training run, model, metrics, settings and log |
 
